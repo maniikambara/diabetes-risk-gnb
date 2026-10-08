@@ -1,8 +1,16 @@
-"""Aplikasi Streamlit: Deteksi Risiko Diabetes (Gaussian Naive Bayes).
+"""Aplikasi Streamlit: Deteksi Kategori Diagnosis Diabetes (Gaussian Naive Bayes, 3 kelas).
 
-Menggunakan model yang dilatih dan dievaluasi pada notebooks/03_GaussianNB.ipynb
-dan notebooks/04_Evaluation.ipynb (model models/gnb_clean.joblib, dilatih pada
-data yang sudah melalui tahap pembersihan pada notebooks/02_Preprocessing.ipynb).
+Target klasifikasi: DiagnosisType (Normal / Tipe 2 / Gestasional), dibangun
+dari diagnosis klinis ASLI dua studi nyata -- Pima Indians Diabetes Database
+(Tipe 2) dan Gestational Diabetes Mellitus (GDM) Data Set (Gestasional) --
+digabung lewat lima atribut yang terukur di kedua dataset: Age, Pregnancies,
+BMI, BloodPressure, Glucose. Model: notebooks/03_GaussianNB.ipynb.
+
+PENTING: pengujian pada notebooks/04_Evaluation.ipynb membuktikan model
+"menebak sumber data" (Pima vs GDM) LEBIH MUDAH (93,8% akurasi) daripada
+menebak DiagnosisType itu sendiri (85,9%) -- kelima fitur ini sebagian
+membawa sinyal populasi/status kehamilan, bukan murni tipe diabetes. Baca
+ini sebelum menafsirkan hasil prediksi aplikasi ini.
 
 Jalankan dengan:
     streamlit run app_streamlit.py
@@ -18,98 +26,90 @@ import streamlit as st
 
 APP_DIR = Path(__file__).resolve().parent
 MODELS_DIR = APP_DIR / "models"
-DATA_PATH = APP_DIR / "data" / "diabetes.csv"
 
-# Kolom yang secara medis tidak mungkin bernilai 0 pada pasien hidup.
-# Identik dengan src/preprocessing.py::ZERO_AS_MISSING_COLUMNS.
-ZERO_AS_MISSING_COLUMNS = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+DIAGNOSIS_LABELS = ["Normal", "Tipe 2", "Gestasional"]
+KELAS_WARNA = {"Normal": "success", "Tipe 2": "error", "Gestasional": "warning"}
+KELAS_IKON = {"Normal": "\u2705", "Tipe 2": "\U0001F6A8", "Gestasional": "\u26a0\ufe0f"}
 
+# Field khusus untuk model gabungan: hanya lima fitur bersama Pima + GDM.
 FIELD_CONFIG = {
+    "Age": dict(label="Usia (tahun)", min_value=1, max_value=120, value=30, step=1,
+                help="Usia pasien dalam tahun."),
     "Pregnancies": dict(label="Jumlah Kehamilan", min_value=0, max_value=20, value=1, step=1,
-                         help="Jumlah kehamilan yang pernah dialami. 0 adalah nilai valid (belum pernah hamil)."),
-    "Glucose": dict(label="Kadar Glukosa Plasma (mg/dL)", min_value=0, max_value=250, value=0, step=1,
-                    help="Hasil tes toleransi glukosa oral 2 jam. Isi 0 jika tidak diketahui -- akan diestimasi otomatis."),
-    "BloodPressure": dict(label="Tekanan Darah Diastolik (mmHg)", min_value=0, max_value=140, value=0, step=1,
-                           help="Isi 0 jika tidak diketahui -- akan diestimasi otomatis."),
-    "SkinThickness": dict(label="Ketebalan Lipatan Kulit Trisep (mm)", min_value=0, max_value=100, value=0, step=1,
-                           help="Isi 0 jika tidak diketahui -- akan diestimasi otomatis."),
-    "Insulin": dict(label="Kadar Insulin Serum 2 Jam (mu U/mL)", min_value=0, max_value=900, value=0, step=1,
-                     help="Isi 0 jika tidak diketahui -- akan diestimasi otomatis."),
-    "BMI": dict(label="Indeks Massa Tubuh / BMI (kg/m\u00b2)", min_value=0.0, max_value=70.0, value=0.0, step=0.1,
-                help="Isi 0 jika tidak diketahui -- akan diestimasi otomatis."),
-    "DiabetesPedigreeFunction": dict(label="Diabetes Pedigree Function", min_value=0.0, max_value=3.0, value=0.5, step=0.01,
-                                      help="Skor riwayat diabetes pada keluarga (semakin tinggi, semakin kuat riwayat keluarga)."),
-    "Age": dict(label="Usia (tahun)", min_value=1, max_value=120, value=30, step=1, help="Usia pasien dalam tahun."),
+                         help="Pima: total kehamilan seumur hidup. GDM: kehamilan ke berapa saat ini. Lihat catatan keterbatasan di bawah."),
+    "BMI": dict(label="Indeks Massa Tubuh / BMI (kg/m\u00b2)", min_value=10.0, max_value=70.0, value=25.0, step=0.1,
+                help="Indeks massa tubuh."),
+    "BloodPressure": dict(label="Tekanan Darah Diastolik (mmHg)", min_value=40, max_value=140, value=70, step=1,
+                           help="Tekanan darah diastolik."),
+    "Glucose": dict(label="Kadar Glukosa 2 Jam Pasca-OGTT (mg/dL)", min_value=40, max_value=420, value=100, step=1,
+                     help="Hasil tes toleransi glukosa oral 2 jam."),
 }
 
 
 @st.cache_resource
 def muat_artefak():
-    model = joblib.load(MODELS_DIR / "gnb_clean.joblib")
+    model = joblib.load(MODELS_DIR / "gnb_diagnosis.joblib")
     with open(MODELS_DIR / "feature_columns.json", encoding="utf-8") as f:
         kolom_fitur = json.load(f)
-    with open(MODELS_DIR / "imputation_medians.json", encoding="utf-8") as f:
-        median_imputasi = json.load(f)
-    return model, kolom_fitur, median_imputasi
+    return model, kolom_fitur
 
 
 @st.cache_data
 def muat_contoh_pasien():
-    """Ambil satu contoh baris nyata per kelas dari dataset sebagai isian cepat."""
-    if not DATA_PATH.exists():
-        return None, None
-    df = pd.read_csv(DATA_PATH)
-    contoh_rendah = df[df["Outcome"] == 0].iloc[0].drop("Outcome").to_dict()
-    contoh_tinggi = df[df["Outcome"] == 1].iloc[0].drop("Outcome").to_dict()
-    return contoh_rendah, contoh_tinggi
-
-
-def siapkan_input(nilai_mentah: dict, kolom_fitur: list, median_imputasi: dict):
-    """Susun satu baris input dengan urutan kolom identik dengan saat
-    pelatihan model, dan gantikan 0 dengan median data latih pada kolom
-    fisiologis yang secara medis tidak mungkin bernilai 0.
-
-    Median dipakai di sini dihitung HANYA dari data latih (lihat
-    notebooks/02_Preprocessing.ipynb, bagian 5) -- bukan median per
-    kelas seperti pada pipeline evaluasi offline, karena pada saat
-    aplikasi ini dipakai, label kelas pasien justru belum diketahui.
-    """
-    baris = {}
-    kolom_diimputasi = []
-    for kolom in kolom_fitur:
-        nilai = nilai_mentah[kolom]
-        if kolom in ZERO_AS_MISSING_COLUMNS and nilai == 0:
-            nilai = median_imputasi[kolom]
-            kolom_diimputasi.append(kolom)
-        baris[kolom] = nilai
-    return pd.DataFrame([baris], columns=kolom_fitur), kolom_diimputasi
+    """Ambil satu contoh baris nyata per kelas DiagnosisType dari dataset
+    gabungan sebagai isian cepat."""
+    path = APP_DIR / "data" / "processed" / "merged_diagnosis.csv"
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path)
+    contoh = {}
+    for kelas in DIAGNOSIS_LABELS:
+        baris = df[df["DiagnosisType"] == kelas]
+        if len(baris) > 0:
+            contoh[kelas] = baris.iloc[0].drop(labels=["DiagnosisType", "SumberData"], errors="ignore").to_dict()
+    return contoh
 
 
 def main():
-    st.set_page_config(page_title="Deteksi Risiko Diabetes", page_icon="\U0001FA7A", layout="centered")
+    st.set_page_config(page_title="Deteksi Kategori Diagnosis Diabetes", page_icon="\U0001FA7A", layout="centered")
 
-    model, kolom_fitur, median_imputasi = muat_artefak()
+    model, kolom_fitur = muat_artefak()
+    kelas_dipelajari = list(model.classes_)
 
-    st.title("\U0001FA7A Deteksi Risiko Diabetes")
-    st.caption("Klasifikasi Risiko Diabetes Menggunakan Gaussian Naive Bayes Berdasarkan Data Diagnostik Pasien")
+    st.title("\U0001FA7A Deteksi Kategori Diagnosis Diabetes")
+    st.caption("Klasifikasi 3 Kelas (Normal / Tipe 2 / Gestasional) dari Diagnosis Asli Pima + GDM, Gaussian Naive Bayes")
 
     st.info(
-        "Aplikasi ini adalah proyek akademik yang dilatih pada **Pima Indians "
-        "Diabetes Database** (768 pasien perempuan keturunan Pima Indian, "
-        "usia \u2265 21 tahun). Hasil prediksi **bukan diagnosis medis** dan "
-        "tidak menggantikan pemeriksaan oleh tenaga medis profesional.",
+        "Model dilatih dari gabungan **Pima Indians Diabetes Database** "
+        "(768 pasien, label Tipe 2 dari diagnosis T2D asli) dan "
+        "**Gestational Diabetes Mellitus (GDM) Data Set** (3.525 pasien hamil, "
+        "label Gestasional dari diagnosis GDM asli). Hasil prediksi **bukan "
+        "diagnosis medis** dan tidak menggantikan pemeriksaan tenaga medis "
+        "profesional.",
         icon="\u2139\ufe0f",
     )
 
-    contoh_rendah, contoh_tinggi = muat_contoh_pasien()
-    if contoh_rendah is not None:
+    st.warning(
+        "**Keterbatasan penting, mohon dibaca:** pengujian langsung pada "
+        "`notebooks/04_Evaluation.ipynb` membuktikan model lebih mudah "
+        "menebak **sumber data** (Pima vs GDM, akurasi 93,8%) daripada "
+        "menebak **DiagnosisType** itu sendiri (85,9%). Artinya kelima "
+        "fitur di bawah sebagian membawa sinyal populasi/status kehamilan "
+        "(pasien GDM selalu sedang hamil, pasien Pima tidak selalu), bukan "
+        "murni pola fisiologis tipe diabetes. Kategori **Tipe 2** juga "
+        "hanya didukung sedikit data latih (6,2% dari total) sehingga "
+        "prediksinya kurang dapat diandalkan dibanding dua kategori lain.",
+        icon="\u26a0\ufe0f",
+    )
+
+    contoh_per_kelas = muat_contoh_pasien()
+    if contoh_per_kelas:
         st.write("Isi cepat dengan contoh data pasien nyata dari dataset:")
-        kol1, kol2, kol3 = st.columns(3)
-        if kol1.button("Contoh: risiko rendah", use_container_width=True):
-            st.session_state.update(contoh_rendah)
-        if kol2.button("Contoh: risiko tinggi", use_container_width=True):
-            st.session_state.update(contoh_tinggi)
-        if kol3.button("Kosongkan", use_container_width=True):
+        kolom_tombol = st.columns(len(contoh_per_kelas) + 1)
+        for kol, (kelas, nilai_contoh) in zip(kolom_tombol, contoh_per_kelas.items()):
+            if kol.button(f"Contoh: {kelas}", use_container_width=True):
+                st.session_state.update(nilai_contoh)
+        if kolom_tombol[-1].button("Kosongkan", use_container_width=True):
             for kolom in kolom_fitur:
                 st.session_state.pop(kolom, None)
 
@@ -132,57 +132,49 @@ def main():
                 help=cfg["help"],
                 key=f"input_{kolom}",
             )
-        submitted = st.form_submit_button("Deteksi Risiko Diabetes", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("Deteksi Kategori Diagnosis", use_container_width=True, type="primary")
 
     if not submitted:
         return
 
-    X_input, kolom_diimputasi = siapkan_input(nilai_input, kolom_fitur, median_imputasi)
-
-    if kolom_diimputasi:
-        st.caption(
-            "Nilai berikut diisi 0 (tidak diketahui) dan diestimasi otomatis "
-            "memakai median data latih: " + ", ".join(kolom_diimputasi)
-        )
+    X_input = pd.DataFrame([nilai_input], columns=kolom_fitur)
 
     prediksi = model.predict(X_input)[0]
-    probabilitas = model.predict_proba(X_input)[0]
-    prob_tidak_diabetes, prob_diabetes = probabilitas[0], probabilitas[1]
+    proba_model = dict(zip(model.classes_, model.predict_proba(X_input)[0]))
+    proba_lengkap = {kelas: proba_model.get(kelas, 0.0) for kelas in DIAGNOSIS_LABELS}
 
     st.divider()
     st.subheader("Hasil Deteksi")
 
-    if prediksi == 1:
-        st.error(f"**Berisiko diabetes** -- probabilitas posterior: {prob_diabetes:.1%}", icon="\u26a0\ufe0f")
-    else:
-        st.success(f"**Tidak berisiko diabetes** -- probabilitas posterior: {prob_tidak_diabetes:.1%}", icon="\u2705")
+    tampilan = getattr(st, KELAS_WARNA.get(prediksi, "info"))
+    tampilan(f"**Kategori: {prediksi}** -- probabilitas posterior: {proba_lengkap[prediksi]:.1%}",
+             icon=KELAS_IKON.get(prediksi, "\u2139\ufe0f"))
 
-    kol1, kol2 = st.columns(2)
-    kol1.metric("P(Tidak Diabetes)", f"{prob_tidak_diabetes:.1%}")
-    kol2.metric("P(Diabetes)", f"{prob_diabetes:.1%}")
+    kolom_metrik = st.columns(3)
+    for kol, kelas in zip(kolom_metrik, DIAGNOSIS_LABELS):
+        kol.metric(kelas, f"{proba_lengkap[kelas]:.1%}")
 
-    grafik = pd.DataFrame(
-        {"Probabilitas": [prob_tidak_diabetes, prob_diabetes]},
-        index=["Tidak Diabetes", "Diabetes"],
-    )
+    grafik = pd.DataFrame({"Probabilitas": [proba_lengkap[k] for k in DIAGNOSIS_LABELS]}, index=DIAGNOSIS_LABELS)
     st.bar_chart(grafik, horizontal=True)
 
     with st.expander("Bagaimana probabilitas ini dihitung?"):
         st.markdown(
             "Model **Gaussian Naive Bayes** menghitung probabilitas posterior "
             "tiap kelas dari probabilitas prior dikalikan kepadatan probabilitas "
-            "normal (Gaussian) tiap atribut pada kelas tersebut, mengikuti "
-            "Teorema Bayes dengan asumsi independensi antar atribut. Langkah "
-            "perhitungannya, termasuk pembuktian bahwa hasilnya identik dengan "
-            "`predict_proba()`, didemonstrasikan secara manual pada "
-            "`notebooks/03_GaussianNB.ipynb`."
+            "normal tiap atribut pada kelas tersebut, mengikuti Teorema Bayes "
+            "dengan asumsi independensi antar atribut. Label `DiagnosisType` "
+            "berasal dari diagnosis klinis asli dua studi (Pima + GDM), "
+            "digabung lewat lima atribut yang terukur di keduanya -- lihat "
+            "`notebooks/02_Preprocessing.ipynb` untuk metodologi penggabungan "
+            "dan `notebooks/03_GaussianNB.ipynb` untuk pembuktian manual "
+            "bahwa posterior ini identik dengan `predict_proba()`."
         )
         st.dataframe(X_input.T.rename(columns={0: "Nilai yang dipakai model"}))
 
     st.caption(
-        "Model: Gaussian Naive Bayes (scikit-learn), dilatih pada data yang "
-        "sudah melalui pembersihan nilai hilang -- lihat notebooks/02_Preprocessing.ipynb, "
-        "notebooks/03_GaussianNB.ipynb, dan notebooks/04_Evaluation.ipynb untuk detail lengkap."
+        "Model: Gaussian Naive Bayes (scikit-learn), target DiagnosisType 3 kelas "
+        "dari diagnosis asli Pima + GDM -- lihat notebooks/01_EDA.ipynb s.d. "
+        "notebooks/04_Evaluation.ipynb untuk metodologi dan keterbatasan lengkap."
     )
 
 

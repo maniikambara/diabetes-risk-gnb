@@ -1,62 +1,61 @@
 {
-  "tanpa_cleaning": {
+  "kelas_dipelajari_model": [
+    "Gestasional",
+    "Normal",
+    "Tipe 2"
+  ],
+  "metrik": {
+    "labels": [
+      "Normal",
+      "Tipe 2",
+      "Gestasional"
+    ],
     "confusion_matrix": [
       [
-        77,
-        23
+        480,
+        37,
+        14
       ],
       [
-        19,
-        35
-      ]
-    ],
-    "akurasi": 0.7273,
-    "precision": 0.6034,
-    "recall": 0.6481,
-    "f1_score": 0.625
-  },
-  "dengan_cleaning": {
-    "confusion_matrix": [
-      [
-        77,
-        23
+        15,
+        36,
+        3
       ],
       [
-        19,
-        35
+        49,
+        3,
+        222
       ]
     ],
-    "akurasi": 0.7273,
-    "precision": 0.6034,
-    "recall": 0.6481,
-    "f1_score": 0.625
-  },
-  "baseline_akurasi_mayoritas": 0.6494,
-  "korelasi_atribut_tertinggi": [
-    {
-      "atribut_1": "BMI",
-      "atribut_2": "SkinThickness",
-      "korelasi": 0.566
-    },
-    {
-      "atribut_1": "Age",
-      "atribut_2": "Pregnancies",
-      "korelasi": 0.544
-    },
-    {
-      "atribut_1": "Glucose",
-      "atribut_2": "Insulin",
-      "korelasi": 0.49
-    },
-    {
-      "atribut_1": "Age",
-      "atribut_2": "BloodPressure",
-      "korelasi": 0.325
-    },
-    {
-      "atribut_1": "BMI",
-      "atribut_2": "BloodPressure",
-      "korelasi": 0.286
+    "akurasi": 0.8591,
+    "precision_macro": 0.7616,
+    "recall_macro": 0.7936,
+    "f1_macro": 0.7708,
+    "per_kelas": {
+      "Normal": {
+        "precision": 0.8824,
+        "recall": 0.904,
+        "f1_score": 0.893,
+        "support": 531
+      },
+      "Tipe 2": {
+        "precision": 0.4737,
+        "recall": 0.6667,
+        "f1_score": 0.5538,
+        "support": 54
+      },
+      "Gestasional": {
+        "precision": 0.9289,
+        "recall": 0.8102,
+        "f1_score": 0.8655,
+        "support": 274
+      }
     }
-  ]
+  },
+  "akurasi_tebak_sumber_data": 0.9383,
+  "distribusi_diagnosistype": {
+    "Normal": 2653,
+    "Tipe 2": 268,
+    "Gestasional": 1372
+  }
 }
