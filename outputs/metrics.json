@@ -1,9 +1,25 @@
 {
+  "bentuk_gabungan": [
+    4293,
+    7
+  ],
+  "distribusi_diagnosistype": {
+    "Normal": 2653,
+    "Tipe 2": 268,
+    "Gestasional": 1372
+  },
   "kelas_dipelajari_model": [
     "Gestasional",
     "Normal",
     "Tipe 2"
   ],
+  "median_imputasi_data_latih": {
+    "Age": 32.0,
+    "Pregnancies": 2.0,
+    "BMI": 28.4,
+    "BloodPressure": 80.0,
+    "Glucose": 154.0
+  },
   "metrik": {
     "labels": [
       "Normal",
@@ -12,50 +28,59 @@
     ],
     "confusion_matrix": [
       [
-        480,
-        37,
-        14
+        488,
+        30,
+        13
       ],
       [
-        15,
+        16,
         36,
-        3
+        2
       ],
       [
-        49,
-        3,
-        222
+        65,
+        2,
+        207
       ]
     ],
-    "akurasi": 0.8591,
-    "precision_macro": 0.7616,
-    "recall_macro": 0.7936,
-    "f1_macro": 0.7708,
+    "akurasi": 0.851,
+    "precision_macro": 0.7732,
+    "recall_macro": 0.7804,
+    "f1_macro": 0.7707,
     "per_kelas": {
       "Normal": {
-        "precision": 0.8824,
-        "recall": 0.904,
-        "f1_score": 0.893,
+        "precision": 0.8576,
+        "recall": 0.919,
+        "f1_score": 0.8873,
         "support": 531
       },
       "Tipe 2": {
-        "precision": 0.4737,
+        "precision": 0.5294,
         "recall": 0.6667,
-        "f1_score": 0.5538,
+        "f1_score": 0.5902,
         "support": 54
       },
       "Gestasional": {
-        "precision": 0.9289,
-        "recall": 0.8102,
-        "f1_score": 0.8655,
+        "precision": 0.9324,
+        "recall": 0.7555,
+        "f1_score": 0.8347,
         "support": 274
       }
     }
   },
-  "akurasi_tebak_sumber_data": 0.9383,
-  "distribusi_diagnosistype": {
-    "Normal": 2653,
-    "Tipe 2": 268,
-    "Gestasional": 1372
+  "akurasi_tebak_sumber_data": 0.936,
+  "evaluasi_per_sumber": {
+    "GDM": {
+      "jumlah_data_uji": 702,
+      "akurasi": 0.8875,
+      "kelas_terbanyak": "Normal",
+      "baseline_kelas_terbanyak": 0.6097
+    },
+    "Pima": {
+      "jumlah_data_uji": 157,
+      "akurasi": 0.6879,
+      "kelas_terbanyak": "Normal",
+      "baseline_kelas_terbanyak": 0.6561
+    }
   }
 }

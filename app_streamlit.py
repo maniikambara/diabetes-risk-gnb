@@ -7,10 +7,11 @@ digabung lewat lima atribut yang terukur di kedua dataset: Age, Pregnancies,
 BMI, BloodPressure, Glucose. Model: notebooks/03_GaussianNB.ipynb.
 
 PENTING: pengujian pada notebooks/04_Evaluation.ipynb membuktikan model
-"menebak sumber data" (Pima vs GDM) LEBIH MUDAH (93,8% akurasi) daripada
-menebak DiagnosisType itu sendiri (85,9%) -- kelima fitur ini sebagian
-membawa sinyal populasi/status kehamilan, bukan murni tipe diabetes. Baca
-ini sebelum menafsirkan hasil prediksi aplikasi ini.
+"menebak sumber data" (Pima vs GDM) LEBIH MUDAH (93,6% akurasi) daripada
+menebak DiagnosisType itu sendiri (85,1%) -- kelima fitur ini sebagian
+membawa sinyal populasi/status kehamilan, bukan murni tipe diabetes. Untuk
+pasien asal Pima akurasi model (68,8%) nyaris sama dengan selalu menebak
+"Normal" (65,6%). Baca ini sebelum menafsirkan hasil prediksi aplikasi ini.
 
 Jalankan dengan:
     streamlit run app_streamlit.py
@@ -57,11 +58,12 @@ def muat_artefak():
 @st.cache_data
 def muat_contoh_pasien():
     """Ambil satu contoh baris nyata per kelas DiagnosisType dari dataset
-    gabungan sebagai isian cepat."""
+    gabungan sebagai isian cepat. Dataset gabungan masih memuat nilai
+    hilang, jadi hanya baris yang kelima fiturnya lengkap yang dipakai."""
     path = APP_DIR / "data" / "processed" / "merged_diagnosis.csv"
     if not path.exists():
         return {}
-    df = pd.read_csv(path)
+    df = pd.read_csv(path).dropna()
     contoh = {}
     for kelas in DIAGNOSIS_LABELS:
         baris = df[df["DiagnosisType"] == kelas]
@@ -70,11 +72,26 @@ def muat_contoh_pasien():
     return contoh
 
 
+def isi_form(nilai):
+    """Callback tombol isi cepat: tulis nilai langsung ke key widget form.
+
+    Nilai widget ber-key hanya bisa diubah lewat st.session_state[key]
+    widget itu sendiri (argumen `value` diabaikan setelah widget dibuat),
+    dan penulisan itu harus terjadi di callback, sebelum widget dirender
+    ulang. Kolom yang tidak ada pada `nilai` kembali ke nilai bawaan.
+    """
+    for kolom, cfg in FIELD_CONFIG.items():
+        nilai_kolom = type(cfg["value"])(nilai.get(kolom, cfg["value"]))
+        st.session_state[f"input_{kolom}"] = min(max(nilai_kolom, cfg["min_value"]), cfg["max_value"])
+
+
 def main():
     st.set_page_config(page_title="Deteksi Kategori Diagnosis Diabetes", page_icon="\U0001FA7A", layout="centered")
 
     model, kolom_fitur = muat_artefak()
     kelas_dipelajari = list(model.classes_)
+    for kolom in kolom_fitur:
+        st.session_state.setdefault(f"input_{kolom}", FIELD_CONFIG[kolom]["value"])
 
     st.title("\U0001FA7A Deteksi Kategori Diagnosis Diabetes")
     st.caption("Klasifikasi 3 Kelas (Normal / Tipe 2 / Gestasional) dari Diagnosis Asli Pima + GDM, Gaussian Naive Bayes")
@@ -92,13 +109,16 @@ def main():
     st.warning(
         "**Keterbatasan penting, mohon dibaca:** pengujian langsung pada "
         "`notebooks/04_Evaluation.ipynb` membuktikan model lebih mudah "
-        "menebak **sumber data** (Pima vs GDM, akurasi 93,8%) daripada "
-        "menebak **DiagnosisType** itu sendiri (85,9%). Artinya kelima "
+        "menebak **sumber data** (Pima vs GDM, akurasi 93,6%) daripada "
+        "menebak **DiagnosisType** itu sendiri (85,1%). Artinya kelima "
         "fitur di bawah sebagian membawa sinyal populasi/status kehamilan "
         "(pasien GDM selalu sedang hamil, pasien Pima tidak selalu), bukan "
         "murni pola fisiologis tipe diabetes. Kategori **Tipe 2** juga "
         "hanya didukung sedikit data latih (6,2% dari total) sehingga "
-        "prediksinya kurang dapat diandalkan dibanding dua kategori lain.",
+        "prediksinya kurang dapat diandalkan dibanding dua kategori lain. "
+        "Untuk pasien asal Pima, akurasi model (68,8%) nyaris sama dengan "
+        "selalu menebak **Normal** (65,6%) -- pembedaan **Normal** vs "
+        "**Tipe 2** oleh aplikasi ini tidak dapat diandalkan.",
         icon="\u26a0\ufe0f",
     )
 
@@ -107,11 +127,8 @@ def main():
         st.write("Isi cepat dengan contoh data pasien nyata dari dataset:")
         kolom_tombol = st.columns(len(contoh_per_kelas) + 1)
         for kol, (kelas, nilai_contoh) in zip(kolom_tombol, contoh_per_kelas.items()):
-            if kol.button(f"Contoh: {kelas}", use_container_width=True):
-                st.session_state.update(nilai_contoh)
-        if kolom_tombol[-1].button("Kosongkan", use_container_width=True):
-            for kolom in kolom_fitur:
-                st.session_state.pop(kolom, None)
+            kol.button(f"Contoh: {kelas}", use_container_width=True, on_click=isi_form, args=(nilai_contoh,))
+        kolom_tombol[-1].button("Kosongkan", use_container_width=True, on_click=isi_form, args=({},))
 
     st.divider()
 
@@ -122,12 +139,10 @@ def main():
         for i, kolom in enumerate(kolom_fitur):
             target_kolom = kol_kiri if i % 2 == 0 else kol_kanan
             cfg = FIELD_CONFIG[kolom]
-            default = st.session_state.get(kolom, cfg["value"])
             nilai_input[kolom] = target_kolom.number_input(
                 cfg["label"],
                 min_value=cfg["min_value"],
                 max_value=cfg["max_value"],
-                value=type(cfg["value"])(default),
                 step=cfg["step"],
                 help=cfg["help"],
                 key=f"input_{kolom}",

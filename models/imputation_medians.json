@@ -1,7 +1,7 @@
 {
-  "Glucose": 117.0,
-  "BloodPressure": 72.0,
-  "SkinThickness": 29.0,
-  "Insulin": 125.0,
-  "BMI": 32.3
+  "Age": 32.0,
+  "Pregnancies": 2.0,
+  "BMI": 28.4,
+  "BloodPressure": 80.0,
+  "Glucose": 154.0
 }
