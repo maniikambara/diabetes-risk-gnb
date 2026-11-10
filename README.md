@@ -117,7 +117,6 @@ identik dengan `predict_proba()` scikit-learn.
 diabetes-risk-gnb/
 ├── README.md
 ├── requirements.txt
-├── app_streamlit.py               aplikasi deteksi kategori diagnosis langsung (satu-satunya berkas .py)
 ├── data/
 │   ├── diabetes.csv               dataset Pima mentah
 │   ├── gdm_dataset.xlsx           dataset GDM mentah
@@ -129,7 +128,7 @@ diabetes-risk-gnb/
 │   ├── 03_GaussianNB.ipynb         split, imputasi median data latih, pelatihan model, pembuktian manual Teorema Bayes
 │   └── 04_Evaluation.ipynb         evaluasi, uji perancu sumber data, akurasi per sumber, dampak cara imputasi
 ├── models/
-│   ├── gnb_diagnosis.joblib        model utama (dipakai app_streamlit.py)
+│   ├── gnb_diagnosis.joblib        model terlatih utama
 │   ├── feature_columns.json        urutan kolom fitur saat pelatihan
 │   └── imputation_medians.json     median data latih kelima fitur, dipakai mengisi nilai hilang
 └── outputs/
@@ -155,15 +154,17 @@ pip install -r requirements.txt
 
 ## Penggunaan
 
-**Notebook:** `jupyter notebook notebooks/`, jalankan 01 -> 04
-berurutan.
+`jupyter notebook notebooks/`, jalankan 01 -> 04 berurutan.
 
-**Aplikasi deteksi langsung:** `streamlit run app_streamlit.py` --
-form isian lima indikator, prediksi `DiagnosisType` beserta
-probabilitas posterior tiap kelas, memakai `models/gnb_diagnosis.joblib`.
-Menampilkan peringatan eksplisit soal keterbatasan perancu sumber
-data. Proyek sudah menyertakan artefak terlatih sehingga aplikasi
-dapat langsung dijalankan.
+## Status Progres
+
+Tahap pemrosesan inti sudah selesai: EDA, preprocessing dan
+penggabungan data, pelatihan Gaussian Naive Bayes, serta evaluasi.
+Model terlatih dan artefaknya (`models/`) sudah tersimpan.
+
+**Tahap berikutnya:** implementasi aplikasi deteksi (form isian lima
+indikator yang menampilkan prediksi `DiagnosisType` beserta
+probabilitas posterior tiap kelas) memakai model pada `models/`.
 
 ## Konfigurasi
 
@@ -271,7 +272,7 @@ kolom meski operasionalisasinya berbeda.
 
 Kode untuk skema `GlucoseRisk` dan `InsulinResistance` (revisi 1 dan 2)
 serta jalur CLI `main.py` dan paket `src/` sudah tidak ada pada versi
-ini -- proyek kini hanya berisi notebook dan aplikasi Streamlit. Kode
+ini -- proyek kini hanya berisi notebook. Kode
 lama tetap bisa dilihat pada riwayat commit git. Cara imputasi lama
 (median per kelas, sebelum split) hanya muncul sebagai pembanding pada
 `notebooks/04_Evaluation.ipynb`.
