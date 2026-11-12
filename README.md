@@ -20,7 +20,7 @@ memprediksi kategori diagnosis diabetes seorang pasien.
 >    batas buatan sendiri) yang pasiennya benar-benar didiagnosis
 >    dengan tipe diabetes berbeda. Pima digabung dengan **Gestational
 >    Diabetes Mellitus (GDM) Data Set** (3.525 pasien hamil nyata, data
->    rumah sakit di India) menjadi target **`DiagnosisType`** 3 kelas
+>    rumah sakit rujukan di Uganda) menjadi target **`DiagnosisType`** 3 kelas
 >    berbasis **diagnosis klinis asli kedua studi**:
 >
 > | Kelas | Sumber | Dasar label |
@@ -29,9 +29,9 @@ memprediksi kategori diagnosis diabetes seorang pasien.
 > | Tipe 2 | Pima | `Outcome=1` -- diagnosis T2D asli studi Pima |
 > | Gestasional | GDM | `Class=GDM` -- diagnosis GDM asli studi tsb. |
 >
-> Metodologi penggabungan mengikuti pendekatan Rasheed dkk. (Scientific
+> Metodologi penggabungan mengikuti El-Bashbishy & El-Bakry (Scientific
 > Reports, 2026, "Pediatric diabetes prediction using machine
-> learning"): union kolom yang benar-benar terukur bersama di kedua
+> learning", doi:10.1038/s41598-025-24964-y): union kolom yang benar-benar terukur bersama di kedua
 > dataset.
 >
 > 4. **Perbaikan imputasi:** nilai hilang semula diisi median per kelas
@@ -75,8 +75,9 @@ Pima Indian usia >= 21 tahun, 8 atribut, label `Outcome`.
 <https://www.kaggle.com/datasets/jamaltariqcheema/pima-indians-diabetes-dataset>
 
 **Dataset 2 - Gestational Diabetes Mellitus (GDM) Data Set.** 3.525
-pasien hamil (data rumah sakit di India), 17 atribut, label
-`Class Label(GDM /Non GDM)`. Sumber: Sumathi Santhosh, Kaggle --
+pasien hamil (data pemeriksaan kehamilan rutin di rumah sakit rujukan
+Uganda; Ahishakiye dkk., 2026, *Discover Artificial Intelligence*), 17
+kolom, label `Class Label(GDM /Non GDM)`. Diunggah oleh Sumathi Santhosh, Kaggle --
 <https://www.kaggle.com/datasets/sumathisanthosh/gestational-diabetes-mellitus-gdm-data-set>.
 Berkas disertakan pada `data/gdm_dataset.xlsx`.
 
@@ -117,6 +118,8 @@ identik dengan `predict_proba()` scikit-learn.
 diabetes-risk-gnb/
 ├── README.md
 ├── requirements.txt
+├── app_streamlit.py               aplikasi cek kategori diabetes (Streamlit)
+├── .streamlit/config.toml         tema aplikasi
 ├── data/
 │   ├── diabetes.csv               dataset Pima mentah
 │   ├── gdm_dataset.xlsx           dataset GDM mentah
@@ -154,17 +157,17 @@ pip install -r requirements.txt
 
 ## Penggunaan
 
-`jupyter notebook notebooks/`, jalankan 01 -> 04 berurutan.
+1. Jalankan notebook `01` sampai `04` berurutan (`jupyter notebook notebooks/`).
+2. Jalankan aplikasi:
 
-## Status Progres
+```
+streamlit run app_streamlit.py
+```
 
-Tahap pemrosesan inti sudah selesai: EDA, preprocessing dan
-penggabungan data, pelatihan Gaussian Naive Bayes, serta evaluasi.
-Model terlatih dan artefaknya (`models/`) sudah tersimpan.
-
-**Tahap berikutnya:** implementasi aplikasi deteksi (form isian lima
-indikator yang menampilkan prediksi `DiagnosisType` beserta
-probabilitas posterior tiap kelas) memakai model pada `models/`.
+Aplikasi berisi dua tab. **Cek pasien**: form lima indikator, kategori paling
+mungkin, probabilitas posterior tiap kelas, dan rincian perhitungan Naive Bayes
+(prior, log-likelihood, posterior). **Tentang model**: metrik data uji,
+akurasi per sumber data, dan confusion matrix dari `outputs/`.
 
 ## Konfigurasi
 
@@ -265,14 +268,15 @@ kolom meski operasionalisasinya berbeda.
 **Asumsi independensi antar atribut tidak sepenuhnya realistis**
 (`Age`-`Pregnancies` 0,54 pada Pima).
 
-**Belum ada validasi silang** -- hasil dari satu kali split dengan
-`random_state=42`.
+**Cross validation hanya pada data latih** -- 5-fold CV (notebook 03)
+memberi akurasi 0,8614 ± 0,0087 dan F1 makro 0,7664 ± 0,0279, sejalan
+dengan hasil data uji. `var_smoothing` default (1e-9) sudah termasuk yang
+terbaik, jadi parameter tidak diubah.
 
 ## Riwayat Skema Sebelumnya
 
 Kode untuk skema `GlucoseRisk` dan `InsulinResistance` (revisi 1 dan 2)
 serta jalur CLI `main.py` dan paket `src/` sudah tidak ada pada versi
-ini -- proyek kini hanya berisi notebook. Kode
-lama tetap bisa dilihat pada riwayat commit git. Cara imputasi lama
+ini. Kode lama tetap bisa dilihat pada riwayat commit git. Cara imputasi lama
 (median per kelas, sebelum split) hanya muncul sebagai pembanding pada
 `notebooks/04_Evaluation.ipynb`.
