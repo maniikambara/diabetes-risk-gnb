@@ -149,6 +149,19 @@ hanya lewat berkas yang ditulisnya: `02` menulis `merged_diagnosis.csv`,
 `03` menulis isi `models/`, `04` menulis `metrics.json` dan
 `confusion_matrices.png`.
 
+Setiap notebook punya sel **Fungsi** di bagian atas yang berisi 2-5 fungsi
+kecil untuk tahap itu, lalu sel-sel berikutnya tinggal memanggil fungsi
+tersebut. Aplikasi juga dibagi menjadi 4 bagian bertanda komentar.
+
+| Bagian | Isi | Fungsi utama |
+| --- | --- | --- |
+| `01_EDA` | cek data, nilai kosong, perbandingan Pima vs GDM, korelasi | `muat_data`, `tandai_nol_sebagai_kosong`, `nilai_kosong_gdm_per_kelas`, `cek_statistik_pima`, `rentang` |
+| `02_Preprocessing` | tandai nilai kosong, samakan kolom, beri label, gabung | `muat_data`, `tandai_nol_sebagai_kosong`, `samakan_kolom_gdm`, `beri_label` |
+| `03_GaussianNB` | split + isi median, training, cross validation, posterior manual | `bagi_dan_isi`, `cek_var_smoothing`, `posterior_manual` |
+| `04_Evaluation` + aplikasi | metrik, confusion matrix, uji asal data, aplikasi Streamlit | `bentuk_ulang_data_uji`, `evaluate_predictions`, `evaluate_by_group`, `gambar_confusion_matrix` |
+
+Pembagian ini bisa dipakai untuk 4 anggota kelompok: satu orang satu baris.
+
 ## Instalasi
 
 ```
