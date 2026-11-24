@@ -7,21 +7,21 @@ Diagnostik Pasien.
 
 ## 2. Deskripsi Ide
 
-Proyek ini membangun model klasifikasi **Gaussian Naive Bayes** untuk
-memprediksi kategori diagnosis diabetes seorang pasien.
+Di proyek ini kami membuat model **Gaussian Naive Bayes** yang menebak
+kategori diagnosis diabetes seorang pasien.
 
 > **Riwayat revisi setelah presentasi dosen pembimbing:**
-> 1. Target awal `Outcome` biner -> 3 kelas `GlucoseRisk` dari ambang
->    batas klinis `Glucose` saja.
-> 2. Dicari faktor di luar glukosa -> target diganti `InsulinResistance`,
->    proxy resistensi insulin dari `Glucose` x `Insulin` dengan ambang
->    batas tertil data-driven.
-> 3. **Revisi ini:** dicari dataset nyata (bukan sintetis, bukan ambang
->    batas buatan sendiri) yang pasiennya benar-benar didiagnosis
->    dengan tipe diabetes berbeda. Pima digabung dengan **Gestational
->    Diabetes Mellitus (GDM) Data Set** (3.525 pasien hamil nyata, data
->    rumah sakit rujukan di Uganda) menjadi target **`DiagnosisType`** 3 kelas
->    berbasis **diagnosis klinis asli kedua studi**:
+> 1. Awalnya target berupa `Outcome` biner, lalu diubah jadi 3 kelas
+>    `GlucoseRisk` yang hanya ditentukan dari ambang klinis `Glucose`.
+> 2. Supaya ada faktor selain glukosa, target diganti `InsulinResistance`,
+>    yaitu proxy resistensi insulin dari `Glucose` x `Insulin` yang dibagi
+>    dengan ambang tertil dari data.
+> 3. **Revisi ini:** kami mencari dataset nyata, bukan data sintetis dan
+>    bukan ambang buatan sendiri, yang pasiennya memang didiagnosis dengan
+>    tipe diabetes berbeda. Hasilnya, Pima digabung dengan **Gestational
+>    Diabetes Mellitus (GDM) Data Set** (3.525 pasien hamil, data rumah
+>    sakit rujukan di Uganda). Targetnya menjadi **`DiagnosisType`** dengan
+>    3 kelas yang diambil dari **diagnosis klinis asli kedua studi**:
 >
 > | Kelas | Sumber | Dasar label |
 > | --- | --- | --- |
@@ -29,61 +29,61 @@ memprediksi kategori diagnosis diabetes seorang pasien.
 > | Tipe 2 | Pima | `Outcome=1` -- diagnosis T2D asli studi Pima |
 > | Gestasional | GDM | `Class=GDM` -- diagnosis GDM asli studi tsb. |
 >
-> Metodologi penggabungan mengikuti El-Bashbishy & El-Bakry (Scientific
+> Cara penggabungannya mengikuti El-Bashbishy & El-Bakry (Scientific
 > Reports, 2026, "Pediatric diabetes prediction using machine
-> learning", doi:10.1038/s41598-025-24964-y): union kolom yang benar-benar terukur bersama di kedua
-> dataset.
+> learning", doi:10.1038/s41598-025-24964-y), yaitu union kolom yang
+> memang diukur di kedua dataset.
 >
-> 4. **Perbaikan imputasi:** nilai hilang semula diisi median per kelas
->    diagnosis, sebelum data dibagi latih/uji. Seluruh nilai hilang GDM
->    ternyata ada pada kelas Non-GDM, sehingga nilai pengisi itu
->    membocorkan label. Imputasi kini dilakukan setelah split, memakai
->    median data latih tanpa label; akurasi turun dari 0,8591 ke 0,8510
->    (lihat bagian Hasil).
+> 4. **Perbaikan imputasi:** dulu nilai hilang diisi median per kelas
+>    diagnosis sebelum data dibagi latih/uji. Belakangan ketahuan semua
+>    nilai hilang GDM ada di kelas Non-GDM, jadi nilai pengisinya
+>    membocorkan label. Sekarang imputasi dilakukan sesudah split dengan
+>    median data latih tanpa melihat label. Akurasinya turun dari 0,8591
+>    menjadi 0,8510 (lihat bagian Hasil).
 
 ## 3. Analisis Permasalahan
 
 ### 3.1 Mengapa Union Kolom Dibatasi pada Lima Atribut
 
-Pima (8 atribut) dan GDM (17 atribut) hanya punya **lima** atribut
-dengan padanan konsep langsung: `Age`, jumlah kehamilan
-(`Pregnancies`), `BMI`, tekanan darah diastolik (`BloodPressure`), dan
-kadar glukosa OGTT (`Glucose`). Union penuh seluruh kolom kedua
-dataset (seperti pada paper acuan, memakai MICE untuk kolom yang
-strukturnya hilang total di satu sumber) dipertimbangkan tapi **tidak
-dipakai** -- terlalu berat untuk diaudit pada skala tugas kuliah.
-Atribut unik Pima (`SkinThickness`, `Insulin`,
-`DiabetesPedigreeFunction`) dan unik GDM (`HDL`, `Hemoglobin`,
-`Family History`, dll.) karena itu tidak dipakai pada model gabungan.
+Dari 8 atribut Pima dan 17 atribut GDM, hanya **lima** yang punya
+padanan langsung: `Age`, jumlah kehamilan (`Pregnancies`), `BMI`,
+tekanan darah diastolik (`BloodPressure`), dan kadar glukosa OGTT
+(`Glucose`). Paper acuan memakai union semua kolom dan mengisi kolom
+yang sama sekali tidak ada di salah satu sumber dengan MICE. Cara itu
+sempat kami pertimbangkan, tapi **tidak dipakai** karena terlalu berat
+untuk dicek ulang di tugas kuliah. Jadi atribut yang hanya ada di Pima
+(`SkinThickness`, `Insulin`, `DiabetesPedigreeFunction`) atau hanya di
+GDM (`HDL`, `Hemoglobin`, `Family History`, dll.) tidak masuk model.
 
 ### 3.2 Keterbatasan Paling Penting: Status Kehamilan sebagai Perancu
 
-Pasien Pima **tidak selalu sedang hamil**, sedangkan **seluruh pasien
-GDM, menurut definisi, sedang hamil**. Dibuktikan secara empiris
-(lihat bagian Hasil): BMI rata-rata kelas "Normal" berbeda 7 poin
-antar sumber (Pima 30,9 vs GDM 23,7), dan model lebih mudah menebak
-**sumber data** (93,6% akurasi) daripada **DiagnosisType** itu sendiri
-(85,1%) -- bukti konkret bahwa sebagian performa model mencerminkan
-perbedaan studi/status kehamilan, bukan murni tipe diabetes. Akibatnya,
-untuk pasien asal Pima model nyaris tidak lebih baik dari selalu
-menebak `Normal` (68,8% vs 65,6%).
+**Semua pasien GDM sedang hamil**, karena memang begitu definisinya,
+sedangkan pasien Pima **belum tentu hamil**. Datanya menunjukkan hal ini
+(lihat bagian Hasil). Rata-rata BMI kelas "Normal" di kedua sumber
+selisih 7 poin (Pima 30,9, GDM 23,7). Selain itu, **sumber data** lebih
+mudah ditebak (akurasi 93,6%) daripada **DiagnosisType** (85,1%).
+Artinya sebagian performa model berasal dari perbedaan studi dan status
+kehamilan, tidak murni dari tipe diabetes. Dampaknya terasa pada pasien
+asal Pima: model hampir tidak lebih baik daripada tebakan yang selalu
+memilih `Normal` (68,8% vs 65,6%).
 
 ## 4. Sumber Data
 
-**Dataset 1 - Pima Indians Diabetes Database.** 768 pasien perempuan
-Pima Indian usia >= 21 tahun, 8 atribut, label `Outcome`.
+**Dataset 1 - Pima Indians Diabetes Database.** Berisi 768 pasien
+perempuan Pima Indian berusia >= 21 tahun, 8 atribut, dengan label `Outcome`.
 <https://www.kaggle.com/datasets/jamaltariqcheema/pima-indians-diabetes-dataset>
 
-**Dataset 2 - Gestational Diabetes Mellitus (GDM) Data Set.** 3.525
-pasien hamil (data pemeriksaan kehamilan rutin di rumah sakit rujukan
-Uganda; Ahishakiye dkk., 2026, *Discover Artificial Intelligence*), 17
-kolom, label `Class Label(GDM /Non GDM)`. Diunggah oleh Sumathi Santhosh, Kaggle --
+**Dataset 2 - Gestational Diabetes Mellitus (GDM) Data Set.** Berisi
+3.525 pasien hamil, 17 kolom, dengan label `Class Label(GDM /Non GDM)`.
+Datanya dari pemeriksaan kehamilan rutin di rumah sakit rujukan Uganda
+(Ahishakiye dkk., 2026, *Discover Artificial Intelligence*) dan diunggah
+ke Kaggle oleh Sumathi Santhosh:
 <https://www.kaggle.com/datasets/sumathisanthosh/gestational-diabetes-mellitus-gdm-data-set>.
-Berkas disertakan pada `data/gdm_dataset.xlsx`.
+Salinannya ada di `data/gdm_dataset.xlsx`.
 
-Dataset tidak memiliki nilai kosong secara eksplisit pada Pima (nilai
-0 dipakai sebagai sentinel pada lima kolom fisiologis), sementara GDM
-sudah memakai `NaN` eksplisit:
+Pima tidak menulis nilai kosong secara eksplisit. Di lima kolom
+fisiologis, nilai 0 dipakai sebagai penanda data kosong. GDM sudah
+langsung memakai `NaN`:
 
 | Kolom | Pima (nilai 0) | GDM (NaN) |
 | --- | --- | --- |
@@ -93,24 +93,27 @@ sudah memakai `NaN` eksplisit:
 | Age | - | 0 |
 | Pregnancies | - | 0 |
 
-**Seluruh nilai hilang GDM ada pada kelas Non-GDM** (1.081 `BMI` dan
-513 `OGTT` dari 2.153 pasien Non-GDM; nol dari 1.372 pasien GDM).
-Karena ada-tidaknya nilai hilang berkaitan dengan label, nilai hilang
-tidak diisi dengan median per kelas diagnosis. Data dibagi latih/uji
-lebih dulu, lalu nilai hilang diisi median tiap fitur dari **data
-latih**, tanpa melihat label (`BMI` 28,4; `BloodPressure` 80;
+**Semua nilai hilang GDM ada di kelas Non-GDM**: 1.081 `BMI` dan 513
+`OGTT` dari 2.153 pasien Non-GDM, sedangkan di 1.372 pasien GDM tidak
+ada sama sekali. Karena ada atau tidaknya nilai hilang berhubungan
+dengan label, kami tidak memakai median per kelas diagnosis. Data dibagi
+latih/uji dulu, baru nilai hilang diisi median setiap fitur dari **data
+latih** tanpa melihat label (`BMI` 28,4; `BloodPressure` 80;
 `Glucose` 154).
 
 ## 5. Metode Komputasi Soft Computing
 
-Naive Bayes (Gaussian Naive Bayes). Tahapan: pembagian data latih/uji
-dan imputasi median data latih, probabilitas prior tiap
-kelas dari data latih, estimasi distribusi normal (mean, variansi)
-tiap atribut per kelas, penerapan Teorema Bayes untuk probabilitas
-posterior, evaluasi dengan akurasi/precision/recall/F1/confusion
-matrix multi-kelas. Dibuktikan manual pada
-`notebooks/03_GaussianNB.ipynb` bahwa posterior hasil hitung tangan
-identik dengan `predict_proba()` scikit-learn.
+Metode yang dipakai adalah Naive Bayes, tepatnya Gaussian Naive Bayes.
+Urutannya:
+
+1. Bagi data latih/uji, lalu isi nilai hilang dengan median data latih.
+2. Hitung probabilitas prior setiap kelas dari data latih.
+3. Taksir distribusi normal (mean dan variansi) setiap atribut di tiap kelas.
+4. Hitung probabilitas posterior dengan Teorema Bayes.
+5. Evaluasi dengan akurasi, precision, recall, F1, dan confusion matrix multi-kelas.
+
+Di `notebooks/03_GaussianNB.ipynb` posterior juga kami hitung manual,
+dan hasilnya sama persis dengan `predict_proba()` dari scikit-learn.
 
 ## Struktur Proyek
 
@@ -142,16 +145,16 @@ diabetes-risk-gnb/
     └── preprocessing_merged_feature_distributions.png
 ```
 
-Seluruh logika (pemuatan data, penandaan nilai hilang, penggabungan,
-imputasi, pelatihan, evaluasi) ada di dalam keempat notebook; tidak ada
-modul Python terpisah. Tiap notebook berdiri sendiri dan terhubung
-hanya lewat berkas yang ditulisnya: `02` menulis `merged_diagnosis.csv`,
-`03` menulis isi `models/`, `04` menulis `metrics.json` dan
-`confusion_matrices.png`.
+Semua logika, mulai dari memuat data, menandai nilai hilang,
+menggabungkan, imputasi, pelatihan, sampai evaluasi, ditulis di keempat
+notebook. Tidak ada modul Python terpisah. Setiap notebook bisa jalan
+sendiri dan hanya terhubung lewat berkas yang dihasilkannya: `02`
+membuat `merged_diagnosis.csv`, `03` mengisi folder `models/`, dan `04`
+membuat `metrics.json` serta `confusion_matrices.png`.
 
-Setiap notebook punya sel **Fungsi** di bagian atas yang berisi 2-5 fungsi
-kecil untuk tahap itu, lalu sel-sel berikutnya tinggal memanggil fungsi
-tersebut. Aplikasi juga dibagi menjadi 4 bagian bertanda komentar.
+Di bagian atas setiap notebook ada sel **Fungsi** berisi 2-5 fungsi kecil
+untuk tahap tersebut. Sel-sel di bawahnya tinggal memanggil fungsi itu.
+Kode aplikasi juga dibagi menjadi 4 bagian yang ditandai komentar.
 
 | Bagian | Isi | Fungsi utama |
 | --- | --- | --- |
@@ -160,7 +163,7 @@ tersebut. Aplikasi juga dibagi menjadi 4 bagian bertanda komentar.
 | `03_GaussianNB` | split + isi median, training, cross validation, posterior manual | `bagi_dan_isi`, `cek_var_smoothing`, `posterior_manual` |
 | `04_Evaluation` + aplikasi | metrik, confusion matrix, uji asal data, aplikasi Streamlit | `bentuk_ulang_data_uji`, `evaluate_predictions`, `evaluate_by_group`, `gambar_confusion_matrix` |
 
-Pembagian ini bisa dipakai untuk 4 anggota kelompok: satu orang satu baris.
+Tabel ini sekaligus jadi pembagian tugas kelompok: setiap anggota memegang satu baris.
 
 ## Instalasi
 
@@ -177,10 +180,11 @@ pip install -r requirements.txt
 streamlit run app_streamlit.py
 ```
 
-Aplikasi berisi dua tab. **Cek pasien**: form lima indikator, kategori paling
-mungkin, probabilitas posterior tiap kelas, dan rincian perhitungan Naive Bayes
-(prior, log-likelihood, posterior). **Tentang model**: metrik data uji,
-akurasi per sumber data, dan confusion matrix dari `outputs/`.
+Aplikasinya punya dua tab. Tab **Cek kategori** berisi form lima indikator.
+Setelah dikirim, tab ini menampilkan kategori yang paling mungkin,
+probabilitas posterior setiap kelas, dan rincian perhitungan Naive Bayes
+(prior, log-likelihood, posterior). Tab **Tentang model** menampilkan metrik
+data uji, akurasi per sumber data, dan confusion matrix dari `outputs/`.
 
 ## Konfigurasi
 
@@ -194,8 +198,8 @@ akurasi per sumber data, dan confusion matrix dari `outputs/`.
 
 ## Hasil
 
-Hasil berikut diperoleh dari `notebooks/04_Evaluation.ipynb`,
-`random_state=42`.
+Semua angka di bawah ini berasal dari `notebooks/04_Evaluation.ipynb`
+dengan `random_state=42`.
 
 **Distribusi `DiagnosisType`** (4.293 baris gabungan): Normal 2.653
 (61,8%), Gestasional 1.372 (32,0%), Tipe 2 268 (6,2%).
@@ -215,28 +219,29 @@ Rincian per kelas:
 | Tipe 2 | 0,5294 | 0,6667 | 0,5902 | 54 |
 | Gestasional | 0,9324 | 0,7555 | 0,8347 | 274 |
 
-**Pembuktian perancu sumber data (bagian terpenting hasil ini):**
-melatih classifier terpisah untuk menebak `SumberData` (Pima vs GDM,
-bukan `DiagnosisType`) dari kelima fitur yang sama menghasilkan
-**akurasi 0,9360** -- lebih tinggi daripada akurasi model pada tugas
-sebenarnya (0,8510). Lima fitur ini lebih mudah dipakai mengenali studi
-asal pasien daripada tipe diabetesnya.
+**Uji perancu sumber data (hasil paling penting):** kami melatih
+classifier lain dengan lima fitur yang sama, tetapi targetnya
+`SumberData` (Pima atau GDM), bukan `DiagnosisType`. Akurasinya
+**0,9360**, lebih tinggi daripada akurasi model untuk tugas aslinya
+(0,8510). Jadi kelima fitur ini lebih mudah mengenali studi asal pasien
+daripada tipe diabetesnya.
 
-**Akurasi per sumber data.** Baseline = selalu menebak kelas terbanyak
-pada sumber itu (`Normal` untuk keduanya):
+**Akurasi per sumber data.** Sebagai baseline dipakai tebakan yang
+selalu memilih kelas terbanyak di sumber tersebut, yaitu `Normal` untuk
+keduanya:
 
 | Sumber | Data uji | Akurasi model | Baseline |
 | --- | --- | --- | --- |
 | GDM | 702 | 0,8875 | 0,6097 |
 | Pima | 157 | 0,6879 | 0,6561 |
 
-Performa model hampir seluruhnya berasal dari pasien GDM. Untuk pasien
-asal Pima selisihnya terhadap baseline hanya sekitar 3 poin (5 dari 157
-pasien uji); 29 dari 103 pasien `Normal` asal Pima ditebak `Tipe 2`.
-Akurasi keseluruhan karena itu tidak boleh dibaca sebagai kemampuan
-model membedakan `Normal` dari `Tipe 2`.
+Hampir semua keunggulan model datang dari pasien GDM. Pada pasien asal
+Pima, model hanya unggul sekitar 3 poin dari baseline (5 dari 157 pasien
+uji), dan 29 dari 103 pasien `Normal` asal Pima malah ditebak `Tipe 2`.
+Karena itu akurasi keseluruhan jangan dianggap sebagai kemampuan model
+membedakan `Normal` dan `Tipe 2`.
 
-**Dampak perubahan cara imputasi** (split yang sama, dari
+**Pengaruh cara imputasi** (split sama, angka dari
 `notebooks/04_Evaluation.ipynb`):
 
 | Cara imputasi | Akurasi | F1 makro | Recall Gestasional | Akurasi baris lengkap | Akurasi baris terimputasi |
@@ -244,52 +249,52 @@ model membedakan `Normal` dari `Tipe 2`.
 | Median per kelas, sebelum split (lama) | 0,8591 | 0,7708 | 0,8102 | 0,8083 | 0,9957 |
 | Median data latih, tanpa label (sekarang) | 0,8510 | 0,7707 | 0,7555 | 0,7971 | 0,9957 |
 
-Cara lama terlalu optimistis karena nilai pengisi per kelas ikut
-membantu memisahkan kelas, sehingga tidak dipakai lagi. Yang tidak
-hilang dengan perbaikan ini: baris uji hasil imputasi (233 baris, 228
-di antaranya `Normal`) tetap ditebak benar 99,6%, jauh di atas baris
-yang datanya lengkap (626 baris, 0,7971).
+Cara lama kami tinggalkan karena hasilnya terlalu optimistis: nilai
+pengisi per kelas ikut membantu memisahkan kelas. Namun ada satu hal
+yang tidak berubah setelah perbaikan. Baris uji hasil imputasi (233
+baris, 228 di antaranya `Normal`) tetap 99,6% benar, jauh lebih tinggi
+daripada baris dengan data lengkap (626 baris, 0,7971).
 
 ## Keterbatasan
 
-**Perancu sumber data / status kehamilan** -- dibuktikan kuantitatif
-di atas, keterbatasan paling signifikan pada revisi ini.
+**Perancu sumber data / status kehamilan.** Ini keterbatasan terbesar
+di revisi ini, dan angkanya sudah ditunjukkan di atas.
 
-**Model nyaris tidak membantu pasien asal Pima** -- akurasi 0,6879 vs
-baseline 0,6561. Konsekuensi langsung perancu di atas: kelas `Normal`
-didominasi pasien GDM, sehingga pasien `Normal` asal Pima tampak mirip
-`Tipe 2` di mata model.
+**Model hampir tidak membantu pasien asal Pima.** Akurasinya 0,6879,
+baseline 0,6561. Penyebabnya perancu tadi: kelas `Normal` didominasi
+pasien GDM, sehingga bagi model pasien `Normal` asal Pima terlihat mirip
+`Tipe 2`.
 
-**Union kolom dibatasi lima fitur** -- atribut unik tiap dataset tidak
-dipakai (lihat bagian Analisis Permasalahan 3.1).
+**Hanya lima fitur.** Atribut yang cuma ada di salah satu dataset
+tidak dipakai (lihat bagian 3.1).
 
-**Ketidakseimbangan kelas berat** -- `Tipe 2` hanya 6,2% data,
-precision/recall-nya jauh lebih rendah dibanding dua kelas lain.
+**Kelas sangat tidak seimbang.** Porsi `Tipe 2` hanya 6,2% data, dan
+precision/recall-nya jauh di bawah dua kelas lainnya.
 
-**Ada-tidaknya nilai hilang berkaitan dengan label** -- seluruh nilai
-hilang GDM ada pada kelas Non-GDM. Imputasi kini memakai median data
-latih tanpa label, sehingga nilai pengisi tidak lagi membocorkan label,
-tetapi baris hasil imputasi tetap jauh lebih mudah ditebak daripada
-baris lengkap. Akurasi pada baris lengkap (0,7971) adalah gambaran yang
-lebih konservatif daripada akurasi keseluruhan (0,8510).
+**Nilai hilang berhubungan dengan label.** Semua nilai hilang GDM ada
+di kelas Non-GDM. Dengan median data latih tanpa label, nilai pengisi
+memang tidak lagi membocorkan label. Tetapi baris hasil imputasi masih
+jauh lebih mudah ditebak daripada baris lengkap. Kalau ingin angka yang
+lebih hati-hati, pakai akurasi baris lengkap (0,7971), bukan akurasi
+keseluruhan (0,8510).
 
-**Perbedaan definisi `Pregnancies`** -- Pima: total kehamilan seumur
-hidup (termasuk 0). GDM: kehamilan ke berapa yang sedang dijalani saat
-ini (minimal 1, karena pasien sedang hamil). Digabung sebagai satu
-kolom meski operasionalisasinya berbeda.
+**Arti `Pregnancies` berbeda.** Di Pima kolom ini berarti jumlah
+kehamilan seumur hidup, bisa 0. Di GDM artinya kehamilan keberapa yang
+sedang dijalani, jadi minimal 1. Keduanya tetap digabung jadi satu kolom
+walaupun cara mengukurnya berbeda.
 
-**Asumsi independensi antar atribut tidak sepenuhnya realistis**
-(`Age`-`Pregnancies` 0,54 pada Pima).
+**Asumsi independensi tidak sepenuhnya terpenuhi.** Di Pima, korelasi
+`Age` dan `Pregnancies` 0,54.
 
-**Cross validation hanya pada data latih** -- 5-fold CV (notebook 03)
-memberi akurasi 0,8614 ± 0,0087 dan F1 makro 0,7664 ± 0,0279, sejalan
-dengan hasil data uji. `var_smoothing` default (1e-9) sudah termasuk yang
-terbaik, jadi parameter tidak diubah.
+**Cross validation hanya di data latih.** Hasil 5-fold CV di notebook
+03 adalah akurasi 0,8614 ± 0,0087 dan F1 makro 0,7664 ± 0,0279, tidak
+jauh dari hasil data uji. Karena `var_smoothing` default (1e-9) sudah
+termasuk yang terbaik, parameternya tidak kami ubah.
 
 ## Riwayat Skema Sebelumnya
 
-Kode untuk skema `GlucoseRisk` dan `InsulinResistance` (revisi 1 dan 2)
-serta jalur CLI `main.py` dan paket `src/` sudah tidak ada pada versi
-ini. Kode lama tetap bisa dilihat pada riwayat commit git. Cara imputasi lama
-(median per kelas, sebelum split) hanya muncul sebagai pembanding pada
-`notebooks/04_Evaluation.ipynb`.
+Versi ini sudah tidak menyimpan kode skema `GlucoseRisk` dan
+`InsulinResistance` (revisi 1 dan 2), begitu juga `main.py` dan paket
+`src/`. Kalau perlu, kode lama masih ada di riwayat commit git. Cara
+imputasi lama (median per kelas sebelum split) sekarang hanya dipakai
+sebagai pembanding di `notebooks/04_Evaluation.ipynb`.
