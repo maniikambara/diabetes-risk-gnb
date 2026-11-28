@@ -8,21 +8,33 @@
   ],
   "kelas": [
     "Gestasional",
-    "Normal",
+    "Normal / Non-GDM",
     "Tipe 2"
   ],
   "transformasi": "tanpa",
-  "pilihan_prior": "seragam",
-  "alpha_prior": 1.0,
+  "penyeimbangan": "oversampling",
   "prior": {
     "Gestasional": 0.333333,
-    "Normal": 0.333333,
+    "Normal / Non-GDM": 0.333333,
     "Tipe 2": 0.333333
   },
   "jumlah_data": {
     "bersih": 3160,
     "pengembangan": 2528,
-    "uji_akhir": 632
+    "uji_akhir": 632,
+    "latih_setelah_seimbang": 3693
+  },
+  "distribusi_kelas_latih": {
+    "sebelum": {
+      "Normal / Non-GDM": 1231,
+      "Tipe 2": 199,
+      "Gestasional": 1098
+    },
+    "sesudah": {
+      "Normal / Non-GDM": 1231,
+      "Tipe 2": 1231,
+      "Gestasional": 1231
+    }
   },
   "rentang_input": {
     "hamil": {

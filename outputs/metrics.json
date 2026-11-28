@@ -3,11 +3,12 @@
     "bersih": 3160,
     "pengembangan": 2528,
     "uji_akhir": 632,
+    "latih_setelah_seimbang": 3693,
     "mentah": 4293,
     "tanpa_kembar": 3938
   },
   "distribusi_kelas_bersih": {
-    "Normal": 1539,
+    "Normal / Non-GDM": 1539,
     "Tipe 2": 249,
     "Gestasional": 1372
   },
@@ -19,149 +20,160 @@
     "Glucose"
   ],
   "transformasi": "tanpa",
-  "pilihan_prior": "seragam",
-  "alpha_prior": 1.0,
+  "penyeimbangan": "oversampling",
+  "distribusi_kelas_latih": {
+    "sebelum": {
+      "Normal / Non-GDM": 1231,
+      "Tipe 2": 199,
+      "Gestasional": 1098
+    },
+    "sesudah": {
+      "Normal / Non-GDM": 1231,
+      "Tipe 2": 1231,
+      "Gestasional": 1231
+    }
+  },
   "prior": {
     "Gestasional": 0.333333,
-    "Normal": 0.333333,
+    "Normal / Non-GDM": 0.333333,
     "Tipe 2": 0.333333
   },
   "metrik_uji_akhir": {
-    "balanced_accuracy": 0.8351,
+    "balanced_accuracy": 0.8261,
     "balanced_accuracy_ci95": [
-      0.7911,
-      0.879
+      0.7813,
+      0.8707
     ],
-    "f1_makro": 0.7893,
+    "f1_makro": 0.7819,
     "f1_makro_ci95": [
-      0.744,
-      0.8286
+      0.7369,
+      0.8223
     ],
-    "akurasi": 0.8608,
+    "akurasi": 0.856,
     "akurasi_ci95": [
-      0.8323,
-      0.8877
+      0.8291,
+      0.8829
     ],
     "recall_tipe2_ci95": [
-      0.6341,
-      0.875
+      0.6154,
+      0.8571
     ],
     "f1_tipe2_ci95": [
-      0.4688,
-      0.6763
+      0.4545,
+      0.6619
     ],
-    "brier_multikelas": 0.2466,
+    "brier_multikelas": 0.2469,
     "confusion_matrix": [
       [
-        252,
-        36,
+        251,
+        37,
         20
       ],
       [
-        8,
-        38,
+        9,
+        37,
         4
       ],
       [
-        13,
+        14,
         7,
-        254
+        253
       ]
     ],
     "per_kelas": {
-      "Normal": {
-        "precision": 0.9231,
-        "recall": 0.8182,
-        "f1_score": 0.8675,
+      "Normal / Non-GDM": {
+        "precision": 0.9161,
+        "recall": 0.8149,
+        "f1_score": 0.8625,
         "support": 308
       },
       "Tipe 2": {
-        "precision": 0.4691,
-        "recall": 0.76,
-        "f1_score": 0.5802,
+        "precision": 0.4568,
+        "recall": 0.74,
+        "f1_score": 0.5649,
         "support": 50
       },
       "Gestasional": {
-        "precision": 0.9137,
-        "recall": 0.927,
-        "f1_score": 0.9203,
+        "precision": 0.9134,
+        "recall": 0.9234,
+        "f1_score": 0.9183,
         "support": 274
       }
     }
   },
   "cv_pengembangan": {
     "balanced_accuracy": {
-      "rata_rata": 0.8248,
-      "simpangan_baku": 0.0258,
+      "rata_rata": 0.825,
+      "simpangan_baku": 0.0249,
       "persentil_2_5_97_5": [
-        0.7792,
-        0.871
+        0.7755,
+        0.8642
       ]
     },
     "f1_makro": {
-      "rata_rata": 0.7828,
-      "simpangan_baku": 0.0211,
+      "rata_rata": 0.7824,
+      "simpangan_baku": 0.021,
       "persentil_2_5_97_5": [
-        0.7471,
-        0.8277
+        0.7446,
+        0.8238
       ]
     },
     "akurasi": {
-      "rata_rata": 0.854,
-      "simpangan_baku": 0.0153,
+      "rata_rata": 0.8541,
+      "simpangan_baku": 0.0156,
       "persentil_2_5_97_5": [
-        0.8247,
-        0.8871
+        0.8277,
+        0.8855
       ]
     },
     "recall_tipe2": {
-      "rata_rata": 0.7387,
-      "simpangan_baku": 0.068,
+      "rata_rata": 0.7392,
+      "simpangan_baku": 0.0645,
       "persentil_2_5_97_5": [
-        0.5862,
+        0.5899,
         0.825
       ]
     },
     "f1_tipe2": {
-      "rata_rata": 0.5767,
-      "simpangan_baku": 0.0445,
+      "rata_rata": 0.5746,
+      "simpangan_baku": 0.0431,
       "persentil_2_5_97_5": [
-        0.4792,
-        0.6568
+        0.4807,
+        0.6499
       ]
     },
     "bal_acc_Pima": {
-      "rata_rata": 0.6746,
-      "simpangan_baku": 0.0395,
+      "rata_rata": 0.6741,
+      "simpangan_baku": 0.0379,
       "persentil_2_5_97_5": [
-        0.5833,
-        0.7338
+        0.5897,
+        0.7271
       ]
     },
     "bal_acc_GDM": {
-      "rata_rata": 0.9109,
-      "simpangan_baku": 0.0153,
+      "rata_rata": 0.9114,
+      "simpangan_baku": 0.0156,
       "persentil_2_5_97_5": [
-        0.8835,
-        0.9394
+        0.883,
+        0.9438
       ]
     }
   },
   "evaluasi_per_sumber": {
     "Pima": {
       "jumlah_data_uji": 136,
-      "akurasi": 0.6618,
-      "balanced_accuracy": 0.6823,
-      "f1_makro": 0.6702,
-      "kelas_terbanyak": "Normal",
+      "akurasi": 0.6471,
+      "balanced_accuracy": 0.6665,
+      "f1_makro": 0.6551,
+      "kelas_terbanyak": "Normal / Non-GDM",
       "baseline_kelas_terbanyak": 0.6324,
       "ditebak_gestasional": 5
     },
     "GDM": {
       "jumlah_data_uji": 496,
-      "akurasi": 0.9153,
-      "balanced_accuracy": 0.914,
-      "f1_makro": 0.9241,
+      "akurasi": 0.9133,
+      "balanced_accuracy": 0.9121,
+      "f1_makro": 0.9221,
       "kelas_terbanyak": "Gestasional",
       "baseline_kelas_terbanyak": 0.5524,
       "ditebak_gestasional": null
@@ -172,16 +184,16 @@
     "standardisasi per sumber": {
       "akurasi_tebak_sumber": 0.7674,
       "baseline_sumber_terbanyak": 0.7674,
-      "balanced_accuracy": 0.6039,
-      "f1_makro": 0.579,
-      "akurasi": 0.6886
+      "balanced_accuracy": 0.6052,
+      "f1_makro": 0.5798,
+      "akurasi": 0.689
     },
     "tanpa mitigasi": {
       "akurasi_tebak_sumber": 0.9352,
       "baseline_sumber_terbanyak": 0.7674,
-      "balanced_accuracy": 0.8248,
-      "f1_makro": 0.7828,
-      "akurasi": 0.854
+      "balanced_accuracy": 0.825,
+      "f1_makro": 0.7824,
+      "akurasi": 0.8541
     }
   },
   "perbandingan_model_cv": {
@@ -205,17 +217,17 @@
       "bal_acc_GDM": 0.4543,
       "f1_makro_sd": 0.0217
     },
-    "GaussianNB final": {
-      "balanced_accuracy": 0.8248,
-      "f1_makro": 0.7828,
-      "akurasi": 0.854,
-      "recall_tipe2": 0.7387,
-      "f1_tipe2": 0.5767,
-      "bal_acc_Pima": 0.6746,
-      "bal_acc_GDM": 0.9109,
-      "f1_makro_sd": 0.0211
+    "GaussianNB final (latih seimbang)": {
+      "balanced_accuracy": 0.825,
+      "f1_makro": 0.7824,
+      "akurasi": 0.8541,
+      "recall_tipe2": 0.7392,
+      "f1_tipe2": 0.5746,
+      "bal_acc_Pima": 0.6741,
+      "bal_acc_GDM": 0.9114,
+      "f1_makro_sd": 0.021
     },
-    "GaussianNB prior empiris": {
+    "GaussianNB tanpa penyeimbangan": {
       "balanced_accuracy": 0.7718,
       "f1_makro": 0.772,
       "akurasi": 0.8654,
@@ -224,6 +236,16 @@
       "bal_acc_Pima": 0.6396,
       "bal_acc_GDM": 0.9201,
       "f1_makro_sd": 0.0264
+    },
+    "GaussianNB prior seragam": {
+      "balanced_accuracy": 0.8248,
+      "f1_makro": 0.7828,
+      "akurasi": 0.854,
+      "recall_tipe2": 0.7387,
+      "f1_tipe2": 0.5767,
+      "bal_acc_Pima": 0.6746,
+      "bal_acc_GDM": 0.9109,
+      "f1_makro_sd": 0.0211
     },
     "LDA": {
       "balanced_accuracy": 0.7323,
@@ -288,19 +310,19 @@
   },
   "kalibrasi_oof": {
     "tanpa kalibrasi": {
-      "brier_multikelas": 0.235,
-      "f1_makro": 0.7838,
-      "balanced_accuracy": 0.8262
+      "brier_multikelas": 0.2347,
+      "f1_makro": 0.783,
+      "balanced_accuracy": 0.8273
     },
     "sigmoid": {
-      "brier_multikelas": 0.2135,
-      "f1_makro": 0.7783,
-      "balanced_accuracy": 0.7904
+      "brier_multikelas": 0.2133,
+      "f1_makro": 0.7769,
+      "balanced_accuracy": 0.7896
     },
     "isotonic": {
-      "brier_multikelas": 0.2056,
-      "f1_makro": 0.7832,
-      "balanced_accuracy": 0.8073
+      "brier_multikelas": 0.2055,
+      "f1_makro": 0.78,
+      "balanced_accuracy": 0.8034
     }
   },
   "dampak_perubahan_data": {

@@ -21,15 +21,16 @@ BASE = Path(__file__).resolve().parent
 MODELS = BASE / "models"
 OUTPUTS = BASE / "outputs"
 
-KELAS = ["Normal", "Tipe 2", "Gestasional"]
-WARNA = {"Normal": "#1baf7a", "Tipe 2": "#eb6834", "Gestasional": "#2a78d6"}
+KELAS = ["Normal / Non-GDM", "Tipe 2", "Gestasional"]
+WARNA = {"Normal / Non-GDM": "#1baf7a", "Tipe 2": "#eb6834", "Gestasional": "#2a78d6"}
 KETERANGAN = {
-    "Normal": "Profil pemeriksaan paling mirip dengan pasien yang tidak didiagnosis diabetes.",
+    "Normal / Non-GDM": "Profil pemeriksaan paling mirip dengan pasien yang tidak didiagnosis diabetes "
+                        "(Normal) atau pasien hamil yang tidak mengalami diabetes gestasional (Non-GDM).",
     "Tipe 2": "Profil pemeriksaan paling mirip dengan pasien diabetes tipe 2.",
     "Gestasional": "Profil pemeriksaan paling mirip dengan pasien diabetes saat kehamilan.",
 }
 SARAN = {
-    "Normal": "Tetap jaga pola makan dan aktivitas fisik, serta lakukan cek gula darah rutin.",
+    "Normal / Non-GDM": "Tetap jaga pola makan dan aktivitas fisik, serta lakukan cek gula darah rutin.",
     "Tipe 2": "Sebaiknya lakukan pemeriksaan lanjutan (gula darah puasa atau HbA1c) bersama dokter.",
     "Gestasional": "Sebaiknya konsultasikan hasil tes glukosa dengan dokter kandungan atau bidan.",
 }
@@ -48,6 +49,7 @@ FIELD = {
 }
 NAMA_PENDEK = {"Age": "Usia", "Pregnancies": "Kehamilan", "BMI": "BMI", "BloodPressure": "Tekanan diastolik",
                "Glucose": "Glukosa 2 jam"}
+NAMA_PENYEIMBANGAN = {"oversampling": "random oversampling", "undersampling": "random undersampling", "SMOTE": "SMOTE"}
 KELOMPOK_FIELD = {
     "Data diri": ["Age", "Pregnancies"],
     "Hasil pemeriksaan": ["BMI", "BloodPressure", "Glucose"],
@@ -321,7 +323,7 @@ def nav_dan_hero(metrik, info):
   <div class="kecil">Skrining awal berbasis data</div>
   <h1>Kenali kategori diabetes dari 5 data pemeriksaan sederhana</h1>
   <p>Untuk pasien perempuan. Masukkan status kehamilan, usia, jumlah kehamilan, BMI, tekanan darah,
-  dan hasil tes glukosa 2 jam. Model menghitung kemungkinan masuk kategori Normal, Diabetes Tipe 2,
+  dan hasil tes glukosa 2 jam. Model menghitung kemungkinan masuk kategori Normal / Non-GDM, Diabetes Tipe 2,
   atau Diabetes Gestasional.</p>
   <div class="statistik">
     <div><b>{jumlah}</b><span>data pasien</span></div>
@@ -401,7 +403,7 @@ def halaman_cek(model, info):
                         'sehingga hasilnya tidak berlaku untuk laki-laki.</div>', unsafe_allow_html=True)
             if contoh:
                 st.caption("Coba dengan contoh pasien dari dataset:")
-                cols = st.columns([1, 1, 1.3, 0.9])
+                cols = st.columns([1.5, 1, 1.3, 0.9])
                 for col, k in zip(cols, KELAS):
                     col.button(k, on_click=isi_form, args=(contoh[k],), width="stretch")
                 cols[3].button("Reset", on_click=isi_form, args=({},), width="stretch")
@@ -482,7 +484,8 @@ def halaman_model(m):
                                                                "recall_tipe2"]]
         banding.columns = ["balanced acc.", "F1 makro", "akurasi", "recall Tipe 2"]
         st.dataframe(banding.style.format(angka), width="stretch")
-        st.caption("Aplikasi memakai GaussianNB final. Model lain hanya sebagai pembanding.")
+        st.caption("Aplikasi memakai GaussianNB final yang dilatih pada data latih seimbang. "
+                   "Model lain hanya sebagai pembanding.")
 
     jd = m["jumlah_data"]
     sumber_cv = m["tebak_sumber_cv"]["tanpa mitigasi"]
@@ -491,6 +494,10 @@ def halaman_model(m):
 **Data.** Gabungan Pima Indians Diabetes (768 pasien) dan Gestational Diabetes Mellitus (3.525 pasien hamil),
 memakai 5 fitur yang ada di keduanya. Dari {ribuan(jd['mentah'])} baris gabungan, baris kembar dan baris yang tidak
 lengkap dibuang sehingga tersisa {ribuan(jd['bersih'])} baris.
+
+**Penyeimbangan kelas.** Data latih diseimbangkan dengan {NAMA_PENYEIMBANGAN.get(m['penyeimbangan'], m['penyeimbangan'])} sehingga tiap kategori berisi
+{ribuan(m['distribusi_kelas_latih']['sesudah']['Tipe 2'])} baris ({ribuan(jd['pengembangan'])} baris asli menjadi
+{ribuan(jd['latih_setelah_seimbang'])} baris). Data uji tidak diseimbangkan, jadi tetap berisi pasien asli.
 
 **Catatan.** Fitur yang sama bisa menebak asal data (Pima atau GDM) dengan akurasi
 {angka(sumber_cv['akurasi_tebak_sumber'])}, sedangkan baseline kelas terbanyak {angka(sumber_cv['baseline_sumber_terbanyak'])}.
