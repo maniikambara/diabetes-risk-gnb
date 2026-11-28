@@ -1,0 +1,73 @@
+{
+  "fitur": [
+    "Age",
+    "Pregnancies",
+    "BMI",
+    "BloodPressure",
+    "Glucose"
+  ],
+  "kelas": [
+    "Gestasional",
+    "Normal",
+    "Tipe 2"
+  ],
+  "transformasi": "tanpa",
+  "pilihan_prior": "seragam",
+  "alpha_prior": 1.0,
+  "prior": {
+    "Gestasional": 0.333333,
+    "Normal": 0.333333,
+    "Tipe 2": 0.333333
+  },
+  "jumlah_data": {
+    "bersih": 3160,
+    "pengembangan": 2528,
+    "uji_akhir": 632
+  },
+  "rentang_input": {
+    "hamil": {
+      "Age": [
+        20.0,
+        45.0
+      ],
+      "Pregnancies": [
+        1.0,
+        4.0
+      ],
+      "BMI": [
+        14.1,
+        45.0
+      ],
+      "BloodPressure": [
+        60.0,
+        124.0
+      ],
+      "Glucose": [
+        80.0,
+        403.0
+      ]
+    },
+    "tidak_hamil": {
+      "Age": [
+        21.0,
+        81.0
+      ],
+      "Pregnancies": [
+        0.0,
+        17.0
+      ],
+      "BMI": [
+        18.2,
+        59.4
+      ],
+      "BloodPressure": [
+        24.0,
+        122.0
+      ],
+      "Glucose": [
+        44.0,
+        199.0
+      ]
+    }
+  }
+}

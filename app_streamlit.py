@@ -3,7 +3,8 @@
 Jalankan:
     streamlit run app_streamlit.py
 
-Model diambil dari folder models/ hasil notebook 03, metrik dari outputs/ hasil notebook 04.
+Model dan rentang data latih diambil dari folder models/ hasil notebook 03,
+metrik dari outputs/ hasil notebook 04.
 """
 
 import json
@@ -33,13 +34,20 @@ SARAN = {
     "Gestasional": "Sebaiknya konsultasikan hasil tes glukosa dengan dokter kandungan atau bidan.",
 }
 
+# Batas widget hanya batas fisik yang wajar. Rentang data latih dibaca dari models/info_model.json.
 FIELD = {
-    "Age": dict(label="Usia", satuan="tahun", min=18, max=90, awal=30, step=1),
-    "Pregnancies": dict(label="Jumlah kehamilan", satuan="kali", min=0, max=20, awal=1, step=1),
-    "BMI": dict(label="Indeks massa tubuh (BMI)", satuan="kg/m²", min=12.0, max=70.0, awal=25.0, step=0.1),
-    "BloodPressure": dict(label="Tekanan darah diastolik", satuan="mmHg", min=30, max=140, awal=75, step=1),
-    "Glucose": dict(label="Glukosa 2 jam setelah TTGO", satuan="mg/dL", min=40, max=420, awal=120, step=1),
+    "Age": dict(label="Usia (tahun)", min=10, max=100, awal=30, step=1),
+    "Pregnancies": dict(label={"Tidak": "Jumlah kehamilan seumur hidup (kali)",
+                               "Ya": "Kehamilan ke berapa saat ini (termasuk yang sekarang)"},
+                        min=0, max=20, awal=1, step=1),
+    "BMI": dict(label="Indeks massa tubuh atau BMI (kg/m²)", min=10.0, max=80.0, awal=25.0, step=0.1),
+    "BloodPressure": dict(label="Tekanan darah diastolik (mmHg)", min=20, max=150, awal=75, step=1),
+    "Glucose": dict(label="Glukosa 2 jam setelah TTGO (mg/dL)", min=1, max=600, awal=120, step=1,
+                    bantuan="Kadar glukosa darah 2 jam setelah minum larutan glukosa 75 g (tes toleransi "
+                            "glukosa oral). Jangan diisi dengan gula darah puasa atau gula darah sewaktu."),
 }
+NAMA_PENDEK = {"Age": "Usia", "Pregnancies": "Kehamilan", "BMI": "BMI", "BloodPressure": "Tekanan diastolik",
+               "Glucose": "Glukosa 2 jam"}
 KELOMPOK_FIELD = {
     "Data diri": ["Age", "Pregnancies"],
     "Hasil pemeriksaan": ["BMI", "BloodPressure", "Glucose"],
@@ -144,6 +152,10 @@ div[data-testid="stNumberInput"] label p { font-size: .88rem; color: var(--tinta
 .stTabs [data-baseweb="tab-highlight"] { background: var(--teal) !important; }
 div[data-testid="stMetric"] { background: var(--putih); border: 1px solid var(--garis); border-radius: 14px; padding: .8rem 1rem; }
 
+.catatan { background: #fff7e6; border: 1px solid #f3dfb0; color: #7a5200; border-radius: 12px;
+  padding: .6rem .85rem; font-size: .84rem; margin: .2rem 0 .8rem; }
+.catatan-kecil { color: var(--tinta-3); font-size: .8rem; margin: .4rem 0 0; }
+
 /* layar kecil */
 @media (max-width: 760px) {
   .block-container { padding: 0 .9rem 2rem .9rem; }
@@ -168,18 +180,22 @@ div[data-testid="stMetric"] { background: var(--putih); border: 1px solid var(--
 @st.cache_resource(show_spinner=False)
 def muat_model():
     model = joblib.load(MODELS / "gnb_diagnosis.joblib")
-    fitur = json.loads((MODELS / "feature_columns.json").read_text(encoding="utf-8"))
-    return model, fitur
+    info = json.loads((MODELS / "info_model.json").read_text(encoding="utf-8"))
+    return model, info
 
 
 @st.cache_data(show_spinner=False)
 def muat_contoh():
-    """Satu pasien nyata (data lengkap) per kelas dari dataset gabungan."""
+    """Satu pasien nyata per kelas dari data bersih. Pasien GDM dianggap sedang hamil."""
     path = BASE / "data" / "processed" / "merged_diagnosis.csv"
     if not path.exists():
         return {}
-    df = pd.read_csv(path).dropna()
-    return {k: df[df["DiagnosisType"] == k].iloc[0][list(FIELD)].to_dict() for k in KELAS}
+    df = pd.read_csv(path)
+    contoh = {}
+    for k in KELAS:
+        baris = df[df["DiagnosisType"] == k].iloc[0]
+        contoh[k] = baris[list(FIELD)].to_dict() | {"hamil": "Ya" if baris["SumberData"] == "GDM" else "Tidak"}
+    return contoh
 
 
 @st.cache_data(show_spinner=False)
@@ -195,19 +211,63 @@ def angka(x, d=3):
     return f"{x:.{d}f}".replace(".", ",")
 
 
+def ribuan(n):
+    return f"{n:,}".replace(",", ".")
+
+
+def angka_bebas(x):
+    """Bilangan bulat tanpa desimal, selain itu satu desimal."""
+    return f"{x:.0f}" if float(x).is_integer() else angka(x, 1)
+
+
 def isi_form(nilai):
     for k, f in FIELD.items():
         v = type(f["awal"])(nilai.get(k, f["awal"]))
         st.session_state[f"in_{k}"] = min(max(v, f["min"]), f["max"])
+    st.session_state["hamil"] = nilai.get("hamil", "Tidak")
+
+
+def sesuaikan_kehamilan(proba, hamil):
+    """Pasien yang tidak hamil tidak mungkin diabetes gestasional: posterior Gestasional jadi 0,
+    lalu sisa kelas dinormalkan ulang."""
+    p = dict(proba)
+    if hamil == "Tidak":
+        p["Gestasional"] = 0.0
+        total = sum(p.values())
+        p = {k: v / total for k, v in p.items()}
+    return p
+
+
+def periksa_input(nilai, hamil, info):
+    """Peringatan bila input di luar rentang data latih atau nilai glukosa tidak masuk akal."""
+    kondisi = "hamil" if hamil == "Ya" else "tidak_hamil"
+    teks_kondisi = "pasien hamil" if hamil == "Ya" else "pasien tidak hamil"
+    luar = []
+    for k, (bawah, atas) in info["rentang_input"][kondisi].items():
+        if not bawah <= nilai[k] <= atas:
+            luar.append(f"{NAMA_PENDEK[k]} {angka_bebas(nilai[k])} (data latih {teks_kondisi}: "
+                        f"{angka_bebas(bawah)} sampai {angka_bebas(atas)})")
+    lain = []
+    g = nilai["Glucose"]
+    if g < 30:
+        lain.append(f"Glukosa {angka_bebas(g)} mg/dL terlalu rendah. Mungkin yang dimasukkan masih dalam mmol/L "
+                    "(kalikan 18 untuk mengubah ke mg/dL).")
+    elif g < 60:
+        lain.append(f"Glukosa 2 jam {angka_bebas(g)} mg/dL jarang ditemui. Pastikan nilainya hasil TTGO 2 jam.")
+    elif g > 400:
+        lain.append(f"Glukosa {angka_bebas(g)} mg/dL sangat tinggi. Periksa kembali nilainya.")
+    return luar, lain
 
 
 def hitung_manual(model, x):
     """Posterior Gaussian NB dihitung langsung dari prior, mean, dan variansi model."""
+    nb = model[-1]
+    masukan = model[:-1].transform(x)[0] if len(model) > 1 else x.to_numpy(dtype=float)[0]
     rows = []
-    for i, kelas in enumerate(model.classes_):
-        log_lik = -0.5 * np.log(2 * np.pi * model.var_[i]) - (x - model.theta_[i]) ** 2 / (2 * model.var_[i])
-        rows.append({"Kelas": kelas, "Prior": model.class_prior_[i],
-                     "log P(x|kelas)": log_lik.sum(), "skor": np.log(model.class_prior_[i]) + log_lik.sum()})
+    for i, kelas in enumerate(nb.classes_):
+        log_lik = -0.5 * np.log(2 * np.pi * nb.var_[i]) - (masukan - nb.theta_[i]) ** 2 / (2 * nb.var_[i])
+        rows.append({"Kelas": kelas, "Prior": nb.class_prior_[i],
+                     "log P(x|kelas)": log_lik.sum(), "skor": np.log(nb.class_prior_[i]) + log_lik.sum()})
     df = pd.DataFrame(rows)
     e = np.exp(df["skor"] - df["skor"].max())
     df["Posterior"] = e / e.sum()
@@ -249,8 +309,9 @@ def judul_kartu(ikon, judul, sub):
                 f'<p class="sub-kartu">{sub}</p>', unsafe_allow_html=True)
 
 
-def nav_dan_hero(metrik):
-    akurasi = f"{metrik['metrik']['akurasi'] * 100:.0f}%" if metrik else "-"
+def nav_dan_hero(metrik, info):
+    jumlah = ribuan(info["jumlah_data"]["bersih"])
+    bal = f"{metrik['metrik_uji_akhir']['balanced_accuracy'] * 100:.0f}%" if metrik else "-"
     st.markdown(f"""
 <div class="nav">
   <div class="brand"><span class="logo">{IKON['logo']}</span>CekDiabetes</div>
@@ -259,12 +320,13 @@ def nav_dan_hero(metrik):
 <div class="hero">
   <div class="kecil">Skrining awal berbasis data</div>
   <h1>Kenali kategori diabetes dari 5 data pemeriksaan sederhana</h1>
-  <p>Masukkan usia, jumlah kehamilan, BMI, tekanan darah, dan hasil tes glukosa.
-  Model akan menghitung kemungkinan masuk kategori Normal, Diabetes Tipe 2, atau Diabetes Gestasional.</p>
+  <p>Untuk pasien perempuan. Masukkan status kehamilan, usia, jumlah kehamilan, BMI, tekanan darah,
+  dan hasil tes glukosa 2 jam. Model menghitung kemungkinan masuk kategori Normal, Diabetes Tipe 2,
+  atau Diabetes Gestasional.</p>
   <div class="statistik">
-    <div><b>4.293</b><span>data pasien</span></div>
+    <div><b>{jumlah}</b><span>data pasien</span></div>
     <div><b>3</b><span>kategori diagnosis</span></div>
-    <div><b>{akurasi}</b><span>akurasi data uji</span></div>
+    <div><b>{bal}</b><span>balanced accuracy</span></div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -290,13 +352,53 @@ def ringkasan_pemeriksaan(nilai):
     return f'<div class="ringkas">{isi}</div>'
 
 
-def halaman_cek(model, fitur):
+def tampil_hasil(model, info, nilai, hamil):
+    x = pd.DataFrame([nilai], columns=info["fitur"])
+    proba_model = dict(zip(model.classes_, model.predict_proba(x)[0]))
+    proba = sesuaikan_kehamilan(proba_model, hamil)
+    pred = max(proba, key=proba.get)
+    w = WARNA[pred]
+
+    luar, lain = periksa_input(nilai, hamil, info)
+    if luar:
+        st.warning("Hasil berikut merupakan ekstrapolasi dan kurang andal, karena ada nilai di luar rentang data "
+                   "latih: " + "; ".join(luar) + ".")
+    for pesan in lain:
+        st.warning(pesan)
+
+    catatan = ("Status tidak hamil, jadi kategori Gestasional tidak dipertimbangkan." if hamil == "Tidak" else
+               "Data Tipe 2 pada model hanya berasal dari pasien Pima yang umumnya tidak sedang hamil.")
+    st.markdown(
+        f'<span class="lencana" style="background:{w}1f;color:{w}">Kategori paling mungkin</span>'
+        f'<div class="kategori" style="color:{w}">{pred}</div>'
+        f'<p class="ket">{KETERANGAN[pred]}</p>'
+        f'{bar_probabilitas(proba)}'
+        f'<p class="catatan-kecil">{catatan}</p>'
+        f'{ringkasan_pemeriksaan(nilai)}'
+        f'<div class="saran">{SARAN[pred]} Hasil ini bukan diagnosis medis.</div>',
+        unsafe_allow_html=True)
+
+    with st.expander("Lihat rincian perhitungan Naive Bayes"):
+        tabel = hitung_manual(model, x)
+        st.caption("skor = log(prior) + jumlah log P(xᵢ | kelas). Posterior = softmax dari skor.")
+        format_tabel = {"Prior": angka, "log P(x|kelas)": lambda v: angka(v, 2), "skor": lambda v: angka(v, 2),
+                        "Posterior": lambda v: angka(v * 100, 2) + "%"}
+        if hamil == "Tidak":
+            tabel["Setelah status kehamilan"] = [proba[k] for k in tabel.index]
+            format_tabel["Setelah status kehamilan"] = lambda v: angka(v * 100, 2) + "%"
+            st.caption("Karena tidak hamil, posterior Gestasional dijadikan 0 lalu dua kelas lain dinormalkan ulang.")
+        st.dataframe(tabel.style.format(format_tabel), width="stretch")
+
+
+def halaman_cek(model, info):
     contoh = muat_contoh()
     kiri, kanan = st.columns([1, 1], gap="large")
 
     with kiri:
         with st.container(border=True):
             judul_kartu("form", "Data pemeriksaan", "Isi sesuai hasil pemeriksaan terakhir.")
+            st.markdown('<div class="catatan">Model ini hanya dilatih dengan data pasien perempuan, '
+                        'sehingga hasilnya tidak berlaku untuk laki-laki.</div>', unsafe_allow_html=True)
             if contoh:
                 st.caption("Coba dengan contoh pasien dari dataset:")
                 cols = st.columns([1, 1, 1.3, 0.9])
@@ -304,14 +406,20 @@ def halaman_cek(model, fitur):
                     col.button(k, on_click=isi_form, args=(contoh[k],), width="stretch")
                 cols[3].button("Reset", on_click=isi_form, args=({},), width="stretch")
 
+            hamil = st.radio("Sedang hamil?", ["Tidak", "Ya"], horizontal=True, key="hamil",
+                             help="Kategori Gestasional hanya mungkin untuk pasien yang sedang hamil.")
+
             with st.form("form_pasien", border=False):
                 nilai = {}
                 for grup, kolom in KELOMPOK_FIELD.items():
                     st.markdown(f'<div class="grup">{grup}</div>', unsafe_allow_html=True)
                     for k in kolom:
+                        if k not in info["fitur"]:
+                            continue
                         f = FIELD[k]
-                        nilai[k] = st.number_input(f"{f['label']} ({f['satuan']})", min_value=f["min"],
-                                                   max_value=f["max"], step=f["step"], key=f"in_{k}")
+                        label = f["label"][hamil] if isinstance(f["label"], dict) else f["label"]
+                        nilai[k] = st.number_input(label, min_value=f["min"], max_value=f["max"], step=f["step"],
+                                                   key=f"in_{k}", help=f.get("bantuan"))
                 kirim = st.form_submit_button("Cek kategori", type="primary", width="stretch")
 
     with kanan:
@@ -322,31 +430,11 @@ def halaman_cek(model, fitur):
                             '<b>Belum ada hasil</b>Isi data di samping lalu tekan <i>Cek kategori</i>.</div>',
                             unsafe_allow_html=True)
             else:
-                x = pd.DataFrame([nilai], columns=fitur)
-                proba = dict(zip(model.classes_, model.predict_proba(x)[0]))
-                pred = max(proba, key=proba.get)
-                w = WARNA[pred]
-
-                st.markdown(
-                    f'<span class="lencana" style="background:{w}1f;color:{w}">Kategori paling mungkin</span>'
-                    f'<div class="kategori" style="color:{w}">{pred}</div>'
-                    f'<p class="ket">{KETERANGAN[pred]}</p>'
-                    f'{bar_probabilitas(proba)}'
-                    f'{ringkasan_pemeriksaan(nilai)}'
-                    f'<div class="saran">{SARAN[pred]} Hasil ini bukan diagnosis medis.</div>',
-                    unsafe_allow_html=True)
-
-                with st.expander("Lihat rincian perhitungan Naive Bayes"):
-                    tabel = hitung_manual(model, x.to_numpy()[0].astype(float))
-                    st.caption("skor = log(prior) + jumlah log P(xᵢ | kelas). Posterior = softmax dari skor.")
-                    st.dataframe(tabel.style.format({"Prior": angka, "log P(x|kelas)": lambda v: angka(v, 2),
-                                                      "skor": lambda v: angka(v, 2),
-                                                      "Posterior": lambda v: angka(v * 100, 2) + "%"}),
-                                 width="stretch")
+                tampil_hasil(model, info, nilai, hamil)
 
     st.markdown("""
 <div class="langkah">
-  <div><span class="no">1</span><b>Isi data</b><p>Lima data: usia, jumlah kehamilan, BMI, tekanan darah diastolik, dan glukosa 2 jam.</p></div>
+  <div><span class="no">1</span><b>Isi data</b><p>Status kehamilan, usia, jumlah kehamilan, BMI, tekanan darah diastolik, dan glukosa 2 jam TTGO.</p></div>
   <div><span class="no">2</span><b>Model menghitung</b><p>Gaussian Naive Bayes menghitung peluang tiap kategori dengan Teorema Bayes.</p></div>
   <div><span class="no">3</span><b>Baca hasilnya</b><p>Kategori dengan peluang terbesar ditampilkan, lengkap dengan ringkasan pemeriksaan.</p></div>
 </div>
@@ -357,25 +445,31 @@ def halaman_model(m):
     if m is None:
         st.info("Jalankan notebook 04 dulu untuk membuat outputs/metrics.json.")
         return
-    mt = m["metrik"]
+    mt = m["metrik_uji_akhir"]
+    ci = lambda k: f"CI 95%: {angka(mt[k][0])} sampai {angka(mt[k][1])}"
     a, b, c, d = st.columns(4)
-    a.metric("Akurasi", angka(mt["akurasi"]))
-    b.metric("Precision makro", angka(mt["precision_macro"]))
-    c.metric("Recall makro", angka(mt["recall_macro"]))
-    d.metric("F1 makro", angka(mt["f1_macro"]))
+    a.metric("Balanced accuracy", angka(mt["balanced_accuracy"]))
+    a.caption(ci("balanced_accuracy_ci95"))
+    b.metric("F1 makro", angka(mt["f1_makro"]))
+    b.caption(ci("f1_makro_ci95"))
+    c.metric("Recall Tipe 2", angka(mt["per_kelas"]["Tipe 2"]["recall"]))
+    c.caption(ci("recall_tipe2_ci95"))
+    d.metric("Akurasi", angka(mt["akurasi"]))
+    d.caption(ci("akurasi_ci95"))
 
     kiri, kanan = st.columns([1, 1], gap="large")
     with kiri:
         with st.container(border=True):
-            st.markdown("**Per kategori (data uji)**")
+            st.markdown("**Per kategori (data uji akhir)**")
             per = pd.DataFrame(mt["per_kelas"]).T.rename(columns={"f1_score": "f1"})
             st.dataframe(per.style.format({"precision": angka, "recall": angka, "f1": angka,
                                            "support": "{:.0f}"}), width="stretch")
-            st.markdown("**Akurasi per sumber data**")
-            src = pd.DataFrame(m["evaluasi_per_sumber"]).T[["jumlah_data_uji", "akurasi", "baseline_kelas_terbanyak"]]
-            src.columns = ["data uji", "akurasi", "baseline"]
-            st.dataframe(src.style.format({"data uji": "{:.0f}", "akurasi": angka, "baseline": angka}),
-                         width="stretch")
+            st.markdown("**Per sumber data**")
+            src = pd.DataFrame(m["evaluasi_per_sumber"]).T[["jumlah_data_uji", "balanced_accuracy", "akurasi",
+                                                            "baseline_kelas_terbanyak"]]
+            src.columns = ["data uji", "balanced acc.", "akurasi", "baseline"]
+            st.dataframe(src.style.format({"data uji": "{:.0f}", "balanced acc.": angka, "akurasi": angka,
+                                           "baseline": angka}), width="stretch")
     with kanan:
         with st.container(border=True):
             st.markdown("**Confusion matrix**")
@@ -383,14 +477,25 @@ def halaman_model(m):
                 st.image(str(OUTPUTS / "confusion_matrices.png"), width="stretch")
 
     with st.container(border=True):
-        st.markdown(f"""
-**Data.** Gabungan Pima Indians Diabetes (768 pasien) dan Gestational Diabetes Mellitus
-(3.525 pasien hamil), memakai 5 fitur yang ada di keduanya.
+        st.markdown("**Perbandingan model (cross validation 5 x 10 pada data pengembangan)**")
+        banding = pd.DataFrame(m["perbandingan_model_cv"]).T[["balanced_accuracy", "f1_makro", "akurasi",
+                                                               "recall_tipe2"]]
+        banding.columns = ["balanced acc.", "F1 makro", "akurasi", "recall Tipe 2"]
+        st.dataframe(banding.style.format(angka), width="stretch")
+        st.caption("Aplikasi memakai GaussianNB final. Model lain hanya sebagai pembanding.")
 
-**Catatan.** Model yang sama bisa menebak asal data (Pima atau GDM) dengan akurasi
-{angka(m['akurasi_tebak_sumber_data'])}, lebih tinggi dari akurasi menebak diagnosis. Jadi sebagian
-hasil dipengaruhi perbedaan populasi dan status kehamilan, bukan hanya tipe diabetes.
-Data Tipe 2 juga sedikit (6,2%).
+    jd = m["jumlah_data"]
+    sumber_cv = m["tebak_sumber_cv"]["tanpa mitigasi"]
+    with st.container(border=True):
+        st.markdown(f"""
+**Data.** Gabungan Pima Indians Diabetes (768 pasien) dan Gestational Diabetes Mellitus (3.525 pasien hamil),
+memakai 5 fitur yang ada di keduanya. Dari {ribuan(jd['mentah'])} baris gabungan, baris kembar dan baris yang tidak
+lengkap dibuang sehingga tersisa {ribuan(jd['bersih'])} baris.
+
+**Catatan.** Fitur yang sama bisa menebak asal data (Pima atau GDM) dengan akurasi
+{angka(sumber_cv['akurasi_tebak_sumber'])}, sedangkan baseline kelas terbanyak {angka(sumber_cv['baseline_sumber_terbanyak'])}.
+Jadi sebagian hasil dipengaruhi perbedaan populasi dan status kehamilan, bukan hanya tipe diabetes.
+Data Tipe 2 hanya {m['distribusi_kelas_bersih']['Tipe 2']} baris dan seluruhnya berasal dari Pima.
 """)
 
 
@@ -398,27 +503,28 @@ def main():
     st.set_page_config(page_title="CekDiabetes · Skrining Kategori Diabetes", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
 
-    berkas_wajib = [MODELS / "gnb_diagnosis.joblib", MODELS / "feature_columns.json"]
+    berkas_wajib = [MODELS / "gnb_diagnosis.joblib", MODELS / "info_model.json"]
     kurang = [b.relative_to(BASE).as_posix() for b in berkas_wajib if not b.exists()]
     if kurang:
         st.error("Model belum ada: " + ", ".join(kurang) + ". Jalankan notebook 01 sampai 03 dulu.")
         st.stop()
 
-    model, fitur = muat_model()
-    for k in fitur:
+    model, info = muat_model()
+    for k in info["fitur"]:
         st.session_state.setdefault(f"in_{k}", FIELD[k]["awal"])
+    st.session_state.setdefault("hamil", "Tidak")
     metrik = muat_metrik()
 
-    nav_dan_hero(metrik)
+    nav_dan_hero(metrik, info)
     tab_cek, tab_model = st.tabs(["Cek kategori", "Tentang model"])
     with tab_cek:
-        halaman_cek(model, fitur)
+        halaman_cek(model, info)
     with tab_model:
         halaman_model(metrik)
 
     st.markdown('<div class="kaki">CekDiabetes dibuat untuk tugas mata kuliah Soft Computing. '
-                'Hasil aplikasi ini adalah perkiraan model statistik, bukan diagnosis dokter.</div>',
-                unsafe_allow_html=True)
+                'Aplikasi ini bukan alat diagnosis. Hasilnya adalah perkiraan model statistik dan tidak '
+                'menggantikan pemeriksaan dokter.</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
